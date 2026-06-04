@@ -36,6 +36,23 @@ def test_load_config_sibling_yaml_overrides(tmp_path):
     assert cfg["page"]["fontsize"] == "10.5pt"  # default preserved
 
 
+def test_deep_merge_does_not_alias_base():
+    # Mutating the merged result must not corrupt the shared base/DEFAULTS.
+    merged = config.deep_merge(config.DEFAULTS, {})
+    merged["output"]["toc"] = False
+    merged["advanced"]["header_includes"].append("X")
+    assert config.DEFAULTS["output"]["toc"] is True
+    assert "X" not in config.DEFAULTS["advanced"]["header_includes"]
+
+
+def test_load_config_returns_isolated_copy(tmp_path):
+    md = tmp_path / "doc.md"
+    md.write_text("# hi")
+    cfg = config.load_config(None, md)
+    cfg["page"]["margin"] = "9in"
+    assert config.DEFAULTS["page"]["margin"] == "0.85in"
+
+
 def test_load_config_malformed_yaml_falls_back(tmp_path, capsys):
     bad = tmp_path / "bad.yaml"
     bad.write_text("page: [unclosed")

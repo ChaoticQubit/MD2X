@@ -1,6 +1,7 @@
 """Configuration: built-in defaults, deep merge, YAML loader."""
 from __future__ import annotations
 
+import copy
 import sys
 from pathlib import Path
 from typing import Any
@@ -78,13 +79,17 @@ DEFAULTS: dict[str, Any] = {
 
 
 def deep_merge(base: dict, over: dict) -> dict:
-    """Recursive dict merge — values in `over` win, missing keys preserved."""
-    out = dict(base)
+    """Recursive dict merge — values in `over` win, missing keys preserved.
+
+    The result shares no mutable substructure with `base`, so callers (e.g.
+    apply_cli_overrides) can mutate it without corrupting the shared DEFAULTS.
+    """
+    out = copy.deepcopy(base)
     for k, v in (over or {}).items():
         if isinstance(v, dict) and isinstance(out.get(k), dict):
             out[k] = deep_merge(out[k], v)
         else:
-            out[k] = v
+            out[k] = copy.deepcopy(v)
     return out
 
 
@@ -113,4 +118,4 @@ def load_config(explicit: Path | None, md_path: Path) -> dict:
                 sys.stderr.write(f"WARN: failed to parse {p}: {e}\n")
                 break
     print("[md2pdf] using built-in defaults (no YAML found)")
-    return DEFAULTS
+    return deep_merge(DEFAULTS, {})
