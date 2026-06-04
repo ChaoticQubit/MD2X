@@ -1,4 +1,4 @@
-# md2pdf Sample Document
+# md2x Sample Document
 
 This sample exercises the full pipeline: headings, prose, a code block, a
 table, and a Mermaid flowchart that gets rendered to a captioned figure.
