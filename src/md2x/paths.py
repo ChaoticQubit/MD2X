@@ -18,8 +18,9 @@ def ensure_venv_yaml() -> None:
         return
     except ImportError:
         pass
-    for p in LOCAL_VENV.glob("lib/python*/site-packages"):
-        sys.path.insert(0, str(p))
+    for pattern in ("lib/python*/site-packages", "Lib/site-packages"):
+        for p in LOCAL_VENV.glob(pattern):
+            sys.path.insert(0, str(p))
     try:
         import yaml  # noqa: F401
     except ImportError:

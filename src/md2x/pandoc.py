@@ -25,7 +25,7 @@ def build_pandoc_cmd(input_md: Path, output_pdf: Path, cfg: dict,
                      Returns:
                          cmd (list[str]): The assembled pandoc CLI argument list for producing the PDF output.
                      """
-                     cmd: list[str] = [
+    cmd: list[str] = [
         pandoc_bin, str(input_md),
         "-o", str(output_pdf),
         f"--pdf-engine={xelatex_bin}",
@@ -61,7 +61,7 @@ def build_pandoc_cmd(input_md: Path, output_pdf: Path, cfg: dict,
         cmd.append("--listings")
     hi = cfg["advanced"].get("header_includes", [])
     if hi:
-        cmd += ["-V", "header-includes=" + "".join(hi)]
+        cmd += ["-V", "header-includes=" + "\n".join(hi)]
     cmd += cfg["advanced"].get("pandoc_extra_args", [])
     return cmd
 

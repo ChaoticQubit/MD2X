@@ -35,7 +35,7 @@ page:
 # Default: null — xelatex uses its built-in Computer Modern (always available,
 # no fontspec lookup, no system font dependency). Override with any font name
 # visible to `fc-list`:
-#   macOS picks: "Helvetica Neue", "Helvetica Neue", "Menlo"
+#   macOS picks: "Palatino", "Helvetica Neue", "Menlo"
 #   Linux picks: "DejaVu Serif", "DejaVu Sans", "DejaVu Sans Mono"
 #   TeX-shipped: "Latin Modern Roman", "Latin Modern Sans", "Latin Modern Mono"
 fonts:

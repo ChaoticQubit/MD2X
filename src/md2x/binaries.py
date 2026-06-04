@@ -14,12 +14,14 @@ def resolve_binary(name: str, override: str | None = None) -> str | None:
     """
     if override:
         p = Path(override).expanduser()
-        return str(p) if p.exists() else None
+        if p.is_file() and os.access(p, os.X_OK):
+            return str(p)
+        return None
     candidate = LOCAL_BIN / name
-    if candidate.exists():
+    if candidate.is_file() and os.access(candidate, os.X_OK):
         return str(candidate)
     candidate = LOCAL_NPM_BIN / name
-    if candidate.exists():
+    if candidate.is_file() and os.access(candidate, os.X_OK):
         return str(candidate)
     if LOCAL_TOOLS.exists():
         for sub in LOCAL_TOOLS.rglob(f"bin/{name}"):

@@ -4,8 +4,6 @@ Public API re-exported for convenience (used by tests and external callers).
 """
 from .paths import ensure_venv_yaml, PROJECT_ROOT
 
-ensure_venv_yaml()
-
 from .config import DEFAULTS, deep_merge, load_config       # noqa: E402
 from .binaries import resolve_binary                        # noqa: E402
 from .mermaid import extract_caption, mermaid_to_dot        # noqa: E402

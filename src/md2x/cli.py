@@ -1,6 +1,6 @@
 """md2x CLI — argument parsing and entry point.
 
-Convert Markdown (with Mermaid blocks) to PDF.
+Convert Markdown (with Mermaid blocks) to PDF, DOCX, HTML, EPUB, or LaTeX.
 
 Self-contained workflow:
   1. Loads YAML config (md2x.yaml next to the input or in the project root).
@@ -34,6 +34,7 @@ from pathlib import Path
 from .config import load_config
 from .pipeline import build
 from .formats import detect_target
+from .paths import ensure_venv_yaml
 
 
 def apply_cli_overrides(cfg: dict, args: argparse.Namespace) -> dict:
@@ -79,6 +80,8 @@ def main() -> int:
     Returns:
         int: Exit code — `0` for a successful `--check`, otherwise the integer returned by `build(...)` representing the conversion result.
     """
+    # Bootstrap PyYAML from the local .venv before any config loading.
+    ensure_venv_yaml()
     ap = argparse.ArgumentParser(
         description="Convert Markdown (with Mermaid diagrams) to "
                     "PDF, DOCX, HTML, EPUB, or LaTeX."

@@ -56,7 +56,7 @@ def test_pdf_command_snapshot():
     """Lock the exact PDF pandoc invocation. If this changes, PDF output changed."""
     cfg = deep_merge(DEFAULTS, {})
     cmd = pandoc.build_pandoc_cmd(Path("in.md"), Path("out.pdf"), cfg, "pandoc", "xelatex")
-    hi = "".join([
+    hi = "\n".join([
         r"\usepackage{float}",
         r"\floatplacement{figure}{H}",
         r"\usepackage[export]{adjustbox}",
