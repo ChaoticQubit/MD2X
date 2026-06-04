@@ -4,6 +4,14 @@ import md2x.binaries as binaries
 
 
 def _make_exe(p: Path):
+    """
+    Create an executable shell script at the given path.
+    
+    Creates parent directories as needed, writes a short shell script that prints "hi", and sets the file's executable permission bits.
+    
+    Parameters:
+        p (Path): Destination path for the executable script.
+    """
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text("#!/bin/sh\necho hi\n")
     p.chmod(p.stat().st_mode | stat.S_IEXEC)

@@ -37,6 +37,17 @@ def test_main_default_output_suffix(monkeypatch, tmp_path):
     md.write_text("# hi")
     captured = {}
     def fake_build(md_path, out_path, cfg):
+        """
+        Stub build function used in tests to capture the generated output path.
+        
+        Parameters:
+            md_path (str): Path to the source Markdown file passed to the build function.
+            out_path (str): Output file path produced by the build invocation; this value is stored in the test `captured` mapping under the key `"out"`.
+            cfg (dict): Configuration dictionary passed to the build function.
+        
+        Returns:
+            int: `0` to indicate successful completion.
+        """
         captured["out"] = out_path
         return 0
     monkeypatch.setattr(cli, "build", fake_build)
@@ -46,6 +57,11 @@ def test_main_default_output_suffix(monkeypatch, tmp_path):
 
 
 def test_main_flags_reach_config(monkeypatch, tmp_path):
+    """
+    Verifies that CLI flags are applied to the configuration passed to the build step.
+    
+    Asserts that using `--no-toc` sets `output.toc` to `False` and `--margin 3in` sets `page.margin` to `"3in"`.
+    """
     md = tmp_path / "doc.md"
     md.write_text("# hi")
     captured = {}

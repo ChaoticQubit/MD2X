@@ -15,5 +15,13 @@ def repo_root() -> Path:
 
 @pytest.fixture
 def binaries_available() -> bool:
+    """
+    Determine whether the required external binaries `pandoc` and `xelatex` are available.
+    
+    Performs availability checks for both `pandoc` and `xelatex`.
+    
+    Returns:
+        True if both binaries are available, False otherwise.
+    """
     from md2x.binaries import resolve_binary
     return bool(resolve_binary("pandoc")) and bool(resolve_binary("xelatex"))

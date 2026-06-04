@@ -34,10 +34,15 @@ EXT_TO_TARGET[".htm"] = "html"
 
 
 def detect_target(out_path: Path | None, override: str | None) -> Target:
-    """Resolve the output Target.
-
-    Precedence: explicit override (e.g. --to / config) wins; else infer from
-    the output file's extension; else default to pdf.
+    """
+    Determine which output Target to use.
+    
+    Parameters:
+        out_path (Path | None): Optional output file path; when provided, the file extension (case-insensitive) is used to infer the target.
+        override (str | None): Optional explicit target name; when provided it must be one of the keys in TARGETS.
+    
+    Returns:
+        Target: The resolved Target instance — the explicit override if given and valid, otherwise the target inferred from out_path's extension, otherwise the PDF target.
     """
     if override:
         if override not in TARGETS:

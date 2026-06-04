@@ -37,6 +37,24 @@ from .formats import detect_target
 
 
 def apply_cli_overrides(cfg: dict, args: argparse.Namespace) -> dict:
+    """
+    Apply command-line argument overrides to a loaded configuration dictionary.
+    
+    This updates cfg in place according to provided CLI flags:
+    - --no-toc sets cfg["output"]["toc"] = False
+    - --toc-depth sets cfg["output"]["toc_depth"]
+    - --margin sets cfg["page"]["margin"]
+    - --fontsize sets cfg["page"]["fontsize"]
+    - --keep-intermediate sets cfg["advanced"]["keep_intermediate"] = True
+    - --theme sets cfg["mermaid"]["theme"]
+    
+    Parameters:
+        cfg (dict): Configuration dictionary loaded from YAML to be modified.
+        args (argparse.Namespace): Parsed CLI arguments containing override values.
+    
+    Returns:
+        dict: The same configuration dictionary with applied overrides.
+    """
     if args.no_toc:
         cfg["output"]["toc"] = False
     if args.toc_depth is not None:
@@ -53,6 +71,14 @@ def apply_cli_overrides(cfg: dict, args: argparse.Namespace) -> dict:
 
 
 def main() -> int:
+    """
+    CLI entry point that parses command-line arguments and runs the build pipeline to convert a Markdown document (with Mermaid diagrams) to the requested output format.
+    
+    Parses supported options (input, output, config, format selection, layout overrides, theme, keep-intermediate, and --check). In `--check` mode prints resolved binary paths and exits. Otherwise validates the input path, loads and updates configuration with CLI overrides, determines the target format and output path, and invokes the conversion pipeline.
+    
+    Returns:
+        int: Exit code — `0` for a successful `--check`, otherwise the integer returned by `build(...)` representing the conversion result.
+    """
     ap = argparse.ArgumentParser(
         description="Convert Markdown (with Mermaid diagrams) to "
                     "PDF, DOCX, HTML, EPUB, or LaTeX."
