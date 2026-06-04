@@ -13,6 +13,10 @@ output:
   toc: true                  # generate table of contents
   toc_depth: 2               # heading depth included in ToC (1-6)
   default_suffix: .pdf       # used when -o not given on CLI
+  # Output format. null = infer from the -o extension (defaults to pdf).
+  # Force one of: pdf | docx | html | epub | latex.
+  # NOTE: page/, fonts/, colors/, and advanced.header_includes apply to PDF/LaTeX only.
+  format: null
   number_sections: false     # set true for "1.2.3" prefixed headings
   citation_processing: false # enable pandoc-citeproc for [^citekey] refs
 

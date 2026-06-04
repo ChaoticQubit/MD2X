@@ -14,6 +14,7 @@ DEFAULTS: dict[str, Any] = {
         "toc": True,
         "toc_depth": 2,
         "default_suffix": ".pdf",
+        "format": None,  # null = infer from output extension (defaults to pdf)
         "number_sections": False,
         "citation_processing": False,
     },

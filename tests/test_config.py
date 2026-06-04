@@ -61,3 +61,7 @@ def test_load_config_malformed_yaml_falls_back(tmp_path, capsys):
     cfg = config.load_config(bad, md)
     assert cfg["page"]["margin"] == "0.85in"
     assert "WARN" in capsys.readouterr().err
+
+
+def test_defaults_have_format_none():
+    assert config.DEFAULTS["output"]["format"] is None
