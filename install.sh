@@ -61,7 +61,7 @@ echo "    pandoc=$PANDOC_VERSION node=$NODE_VERSION"
 echo
 
 # ──────────────────────────────────────────────────────────────────────────
-# 1. Python venv + PyYAML
+# 1. Python venv + PyYAML + pytest
 # ──────────────────────────────────────────────────────────────────────────
 color "==> [1/5] Python venv at .venv"
 if [[ ! -d "$VENV" ]]; then
@@ -70,9 +70,9 @@ fi
 # shellcheck disable=SC1091
 source "$VENV/bin/activate"
 python -m pip install --quiet --upgrade pip
-python -m pip install --quiet pyyaml
+python -m pip install --quiet pyyaml pytest
 deactivate
-echo "       PyYAML installed in .venv"
+echo "       PyYAML + pytest installed in .venv"
 
 # ──────────────────────────────────────────────────────────────────────────
 # 2. Node (local) + mmdc

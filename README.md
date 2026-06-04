@@ -13,7 +13,19 @@ This is the tool that produced `FDET_Charter.pdf`.
 
 ```
 ~/Tools/MD2PDF/
-├── md2pdf.py          # main script (executable)
+├── md2pdf.py          # entry shim (executable) — delegates to src/md2pdf
+├── src/md2pdf/        # the package (one responsibility per module)
+│   ├── __init__.py    #   public API re-exports + venv-yaml bootstrap
+│   ├── paths.py       #   PROJECT_ROOT + local install layout
+│   ├── config.py      #   defaults, deep_merge, YAML loader
+│   ├── binaries.py    #   executable resolution
+│   ├── mermaid.py     #   block extraction, captions, dot conversion
+│   ├── renderers.py   #   mmdc / dot PNG renderers + fallback chain
+│   ├── pandoc.py      #   pandoc command builder
+│   ├── pipeline.py    #   build(): render -> rewrite -> pandoc
+│   └── cli.py         #   argparse + main()
+├── tests/             # pytest suite (hermetic + gated real E2E)
+├── pytest.ini         # test config (pythonpath = src)
 ├── md2pdf.yaml        # YAML config (every knob documented inline)
 ├── install.sh         # local installer — venv + node + pandoc + TinyTeX
 ├── Makefile           # convenience targets
@@ -97,6 +109,27 @@ make distclean               # also wipe .venv / .tools / node_modules
 ```
 
 `./md2pdf.py --help` lists every flag.
+
+---
+
+## Testing
+
+The logic lives in `src/md2pdf/` as focused modules, covered by a pytest suite
+in `tests/`:
+
+```bash
+make test                    # run the whole suite
+.venv/bin/python -m pytest   # same thing directly
+```
+
+- **Hermetic tests** (always run) cover config merge/precedence, binary
+  resolution order, Mermaid→dot conversion, the renderer fallback chain, the
+  pandoc command matrix, and the `build()` pipeline (figure embedding,
+  `on_failure` policies, manifest, `no_clobber`, intermediate cleanup) using
+  fake executable stubs — no heavy binaries needed.
+- **One gated end-to-end test** renders `examples/sample.md` to a real PDF via
+  pandoc + xelatex + dot. It is skipped automatically if those binaries don't
+  resolve. `pytest` is installed into `.venv` by `install.sh`.
 
 ---
 

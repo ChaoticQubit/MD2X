@@ -12,12 +12,13 @@ SCRIPT := md2pdf.py
 SAMPLE := examples/sample.md
 IN ?=
 
-.PHONY: install check sample pdf clean distclean help
+.PHONY: install check test sample pdf clean distclean help
 
 help:
 	@echo "Targets:"
 	@echo "  install            Local install (no global pollution)"
 	@echo "  check              Show resolved binary paths"
+	@echo "  test               Run the pytest suite"
 	@echo "  sample             Render examples/sample.md"
 	@echo "  pdf IN=file.md     Render an arbitrary file"
 	@echo "  clean              Delete generated PDFs + intermediate files"
@@ -29,6 +30,9 @@ install:
 
 check:
 	@$(PY) _check.py
+
+test:
+	@.venv/bin/python -m pytest
 
 sample: $(SAMPLE)
 	@$(PY) $(SCRIPT) $(SAMPLE)
