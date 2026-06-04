@@ -32,3 +32,21 @@ def test_real_md_to_pdf(tmp_path):
     assert out.read_bytes()[:4] == b"%PDF"
     # the flowchart block was rendered to a real PNG
     assert (tmp_path / "diagrams" / "mermaid_01.png").exists()
+
+
+_HAVE_PANDOC = bool(resolve_binary("pandoc"))
+
+
+@pytest.mark.skipif(not _HAVE_PANDOC, reason="pandoc not resolvable")
+def test_real_md_to_docx(tmp_path):
+    work = tmp_path / "doc.md"
+    shutil.copy(SAMPLE, work)
+    out = tmp_path / "doc.docx"
+    # Force dot renderer; if no renderer is present the Mermaid block degrades
+    # to source text and the DOCX still builds (pandoc-only path).
+    cfg = deep_merge(DEFAULTS, {"mermaid": {"prefer": "dot"}})
+    rc = build(work, out, cfg)
+    assert rc == 0
+    assert out.exists()
+    assert out.stat().st_size > 1024
+    assert out.read_bytes()[:4] == b"PK\x03\x04"  # .docx is a zip container

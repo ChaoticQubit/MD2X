@@ -9,12 +9,14 @@ from pathlib import Path
 from .binaries import resolve_binary
 from .mermaid import MERMAID_RE, extract_caption
 from .renderers import render_block
-from .pandoc import build_pandoc_cmd
+from .pandoc import build_cmd
+from .formats import detect_target
 
 
 def build(md_path: Path, out_path: Path, cfg: dict) -> int:
     md_path = md_path.resolve()
     out_path = out_path.resolve()
+    target = detect_target(out_path, cfg["output"].get("format"))
     work_dir = md_path.parent
     diag_dir = work_dir / "diagrams"
     diag_dir.mkdir(exist_ok=True)
@@ -30,14 +32,16 @@ def build(md_path: Path, out_path: Path, cfg: dict) -> int:
 
     if not pandoc_bin:
         sys.exit("ERROR: pandoc not found. Run ./install.sh")
-    if not xelatex_bin:
-        sys.exit("ERROR: xelatex not found. Run ./install.sh")
+    if target.needs_xelatex and not xelatex_bin:
+        sys.exit("ERROR: xelatex not found (required for PDF). "
+                 "Run ./install.sh, or choose another format with --to.")
     if not mmdc_bin and not dot_bin:
         sys.stderr.write("WARN: neither mmdc nor dot found — Mermaid blocks "
                          "will be kept as code blocks.\n")
 
     print(f"[md2x] pandoc:  {pandoc_bin}")
-    print(f"[md2x] xelatex: {xelatex_bin}")
+    if target.needs_xelatex:
+        print(f"[md2x] xelatex: {xelatex_bin}")
     print(f"[md2x] mmdc:    {mmdc_bin or '(none)'}")
     print(f"[md2x] dot:     {dot_bin or '(none)'}")
 
@@ -92,7 +96,7 @@ def build(md_path: Path, out_path: Path, cfg: dict) -> int:
     tmp_md = work_dir / (md_path.stem + "._md2x.md")
     tmp_md.write_text(rewritten, encoding="utf-8")
 
-    cmd = build_pandoc_cmd(tmp_md, out_path, cfg, pandoc_bin, xelatex_bin)
+    cmd = build_cmd(tmp_md, out_path, cfg, target, pandoc_bin, xelatex_bin)
     print(f"[md2x] running pandoc …")
     res = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
     if res.returncode != 0:

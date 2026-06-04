@@ -124,3 +124,40 @@ def test_keep_intermediate_false_deletes(monkeypatch, tmp_path):
     md = _make_md(tmp_path, MD)
     pipeline.build(md, tmp_path / "out.pdf", deep_merge(DEFAULTS, {}))
     assert not (tmp_path / "doc._md2x.md").exists()
+
+
+def _fake_pandoc_recording(tmp_path: Path):
+    """Fake pandoc that records argv and writes a zip-magic file to -o."""
+    p = tmp_path / "pandoc"
+    log = tmp_path / "pandoc_argv.txt"
+    p.write_text(
+        "#!/usr/bin/env python3\n"
+        "import sys\n"
+        f"open(r'{log}', 'w').write(' '.join(sys.argv))\n"
+        "out = sys.argv[sys.argv.index('-o') + 1]\n"
+        "open(out, 'wb').write(b'PK\\x03\\x04 fake docx')\n"
+    )
+    p.chmod(p.stat().st_mode | stat.S_IEXEC)
+    return str(p), log
+
+
+def test_build_docx_does_not_require_xelatex(monkeypatch, tmp_path):
+    pan, log = _fake_pandoc_recording(tmp_path)
+    # xelatex intentionally MISSING — must not abort for a docx target.
+    def fake_resolve(name, override=None):
+        return {"pandoc": pan, "xelatex": None, "mmdc": "mmdc", "dot": "dot"}[name]
+    monkeypatch.setattr(pipeline, "resolve_binary", fake_resolve)
+
+    def fake_render(src, png, cfg, mmdc_bin, dot_bin):
+        Path(png).write_bytes(b"\x89PNG")
+        return True, "dot"
+    monkeypatch.setattr(pipeline, "render_block", fake_render)
+
+    md = _make_md(tmp_path, MD)
+    cfg = deep_merge(DEFAULTS, {})
+    rc = pipeline.build(md, tmp_path / "out.docx", cfg)
+    assert rc == 0
+    assert (tmp_path / "out.docx").exists()
+    argv = log.read_text()
+    assert "-t docx" in argv
+    assert "--pdf-engine" not in argv
