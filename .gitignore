@@ -1,0 +1,27 @@
+# Generated artifacts
+*.pdf
+*._md2pdf.md
+*._md2pdf.json
+diagrams/
+**/diagrams/
+
+# Local install (created by install.sh; do not commit)
+.venv/
+.tools/
+.bin/
+node_modules/
+package-lock.json
+
+# Python noise
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+.claude/

@@ -1,0 +1,123 @@
+# md2pdf.yaml
+# Default configuration for md2pdf. CLI flags override values here.
+# Drop a copy named `md2pdf.yaml` next to the markdown you're rendering
+# to override per-document; otherwise this file in the project root is used.
+#
+# Every section below is optional — missing values fall back to built-in
+# defaults shown in the comments.
+
+# ──────────────────────────────────────────────────────────────────────────
+# OUTPUT
+# ──────────────────────────────────────────────────────────────────────────
+output:
+  toc: true                  # generate table of contents
+  toc_depth: 2               # heading depth included in ToC (1-6)
+  default_suffix: .pdf       # used when -o not given on CLI
+  number_sections: false     # set true for "1.2.3" prefixed headings
+  citation_processing: false # enable pandoc-citeproc for [^citekey] refs
+
+# ──────────────────────────────────────────────────────────────────────────
+# PAGE
+# ──────────────────────────────────────────────────────────────────────────
+page:
+  margin: 0.85in             # any LaTeX length: 0.7in, 2cm, 18mm, ...
+  fontsize: 10.5pt           # 10pt / 11pt / 12pt safest; xelatex accepts others
+  paper: letter              # letter | a4 | a5 | legal | b5 | executive
+  orientation: portrait      # portrait | landscape
+  line_spacing: 1.15         # 1.0 = single, 1.5 = one-and-a-half
+
+# ──────────────────────────────────────────────────────────────────────────
+# FONTS
+# ──────────────────────────────────────────────────────────────────────────
+# Default: null — xelatex uses its built-in Computer Modern (always available,
+# no fontspec lookup, no system font dependency). Override with any font name
+# visible to `fc-list`:
+#   macOS picks: "Helvetica Neue", "Helvetica Neue", "Menlo"
+#   Linux picks: "DejaVu Serif", "DejaVu Sans", "DejaVu Sans Mono"
+#   TeX-shipped: "Latin Modern Roman", "Latin Modern Sans", "Latin Modern Mono"
+fonts:
+  main: null
+  sans: null
+  mono: null
+  cjk: null                  # e.g. "Noto Sans CJK SC" if mixing Chinese/Japanese
+
+# ──────────────────────────────────────────────────────────────────────────
+# COLORS  (xcolor named colors or hex like "1F4E79")
+# ──────────────────────────────────────────────────────────────────────────
+colors:
+  link: NavyBlue             # in-document links
+  url: NavyBlue              # external URLs
+  toc: NavyBlue              # ToC entries
+  heading: null              # null = LaTeX default black; set hex to colorize headings
+
+# ──────────────────────────────────────────────────────────────────────────
+# CODE BLOCKS
+# ──────────────────────────────────────────────────────────────────────────
+code:
+  highlight_style: tango     # tango | pygments | kate | breezedark
+                             # | zenburn | monochrome | espresso | haddock
+  line_numbers: false        # add line numbers to fenced code blocks
+
+# ──────────────────────────────────────────────────────────────────────────
+# IMAGES / DIAGRAMS
+# ──────────────────────────────────────────────────────────────────────────
+images:
+  width: 6.2in               # max width applied to every embedded mermaid PNG
+  caption_prefix: "Figure"   # "Figure 1: ...", set "" to suppress numbering
+  show_captions: true        # render italic caption under each diagram
+  dpi: 120                   # dot/graphviz output resolution
+  mmdc_width: 1600           # mmdc render width in px
+  mmdc_height: 1100          # mmdc render height in px
+
+# ──────────────────────────────────────────────────────────────────────────
+# MERMAID
+# ──────────────────────────────────────────────────────────────────────────
+mermaid:
+  theme: default             # default | forest | dark | neutral
+  background: white          # transparent | white | <hex>
+  prefer: auto               # mmdc | dot | auto (mmdc if available, else dot)
+  on_failure: keep_source    # keep_source | omit | error
+                             #   keep_source — leave the mermaid block verbatim
+                             #   omit        — drop the block silently
+                             #   error       — abort the build
+
+# ──────────────────────────────────────────────────────────────────────────
+# BINARY PATHS
+# ──────────────────────────────────────────────────────────────────────────
+# Leave null for auto-detection. Auto-detect order:
+#   1. <project>/.bin/<name>            (installed by install.sh)
+#   2. <project>/.tools/.../bin/<name>  (pandoc, tinytex)
+#   3. <project>/node_modules/.bin/<name>  (mmdc)
+#   4. system PATH
+binaries:
+  pandoc: null
+  xelatex: null
+  mmdc: null
+  dot: null
+
+# ──────────────────────────────────────────────────────────────────────────
+# ADVANCED
+# ──────────────────────────────────────────────────────────────────────────
+advanced:
+  # Lines appended verbatim into LaTeX preamble via pandoc's
+  # `header-includes` variable. Add custom packages here.
+  header_includes:
+    - \usepackage{float}
+    - \floatplacement{figure}{H}
+    - \usepackage[export]{adjustbox}
+    - \usepackage{microtype}
+    - \usepackage{booktabs}
+
+  # Extra pandoc CLI args appended to every invocation.
+  # Examples: ["--shift-heading-level-by=1", "--reference-doc=template.docx"]
+  pandoc_extra_args: []
+
+  # When true, the intermediate <name>._md2pdf.md file is NOT deleted.
+  keep_intermediate: false
+
+  # When true, write a render manifest (`<name>._md2pdf.json`) describing
+  # every block that was rendered, its source, and the chosen renderer.
+  emit_manifest: false
+
+  # If True, refuse to overwrite an existing PDF; abort with non-zero exit.
+  no_clobber: false
