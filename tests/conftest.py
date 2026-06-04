@@ -1,0 +1,19 @@
+import sys
+from pathlib import Path
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+# Redundant with pytest.ini `pythonpath = src`, but lets `pytest` run from any
+# cwd and keeps the package ahead of the root md2pdf.py shim.
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+
+@pytest.fixture
+def repo_root() -> Path:
+    return REPO_ROOT
+
+
+@pytest.fixture
+def binaries_available() -> bool:
+    from md2pdf.binaries import resolve_binary
+    return bool(resolve_binary("pandoc")) and bool(resolve_binary("xelatex"))
