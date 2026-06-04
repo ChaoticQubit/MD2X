@@ -74,7 +74,7 @@ md2x --check                      # show which binaries were found
 | EPUB | `--to epub` / `.epub` | pandoc |
 | LaTeX | `--to latex` / `.tex` | pandoc |
 
-Format is taken from `--to`, else inferred from the `-o` extension, else PDF. Page/font/color settings apply to PDF (and LaTeX) only.
+Format is taken from `--to`, else inferred from the `-o` extension, else PDF. Page/font/color settings apply to PDF only.
 
 ## Configuration
 
@@ -139,7 +139,7 @@ xelatex is only required for PDF output. For other formats (`--to docx`, `--to h
 - Or restructure the diagram (split into two, shorter labels, switch `rankdir` from `LR` to `TB`).
 
 **Font error: "DejaVu Serif not found" on macOS**
-Either install DejaVu (`brew install --cask font-dejavu`) or edit `fonts.main` / `fonts.sans` / `fonts.mono` in `md2x.yaml` to fonts you have (e.g. `Helvetica Neue`, `Menlo`). Font settings only affect PDF (and LaTeX) output.
+Either install DejaVu (`brew install --cask font-dejavu`) or edit `fonts.main` / `fonts.sans` / `fonts.mono` in `md2x.yaml` to fonts you have (e.g. `Helvetica Neue`, `Menlo`). Font settings only affect PDF output.
 
 **LaTeX complains about a missing `.sty`**
 The bundled TinyTeX is intentionally minimal. To add a package:

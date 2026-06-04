@@ -1,6 +1,6 @@
 """md2x — Markdown (+Mermaid) → PDF / DOCX / HTML / EPUB / LaTeX.
 
-Public API re-exported for convenience and back-compat (see root md2x.py shim).
+Public API re-exported for convenience (used by tests and external callers).
 """
 from .paths import ensure_venv_yaml, PROJECT_ROOT
 

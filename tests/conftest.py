@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-# Redundant with pytest.ini `pythonpath = src`, but lets `pytest` run from any
-# cwd and keeps the package ahead of the root md2x.py shim.
+# Redundant with pyproject.toml `[tool.pytest.ini_options] pythonpath = src`,
+# but lets `pytest` run from any cwd and resolve the src-layout package.
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 
