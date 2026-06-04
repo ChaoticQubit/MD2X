@@ -13,6 +13,26 @@ from .pandoc import build_cmd
 from .formats import detect_target
 
 
+def _strip_quarantine(path: Path) -> None:
+    """Remove the macOS com.apple.quarantine xattr from a freshly written file.
+
+    Files written by a quarantined toolchain (e.g. a downloaded TeX/pandoc
+    binary) inherit the quarantine flag, which makes macOS Gatekeeper show a
+    spurious "could not verify ... is free of malware" warning on the locally
+    generated output. The file is our own product, so clear the flag.
+    """
+    if sys.platform != "darwin":
+        return
+    try:
+        subprocess.run(
+            ["/usr/bin/xattr", "-d", "com.apple.quarantine", str(path)],
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        pass
+
+
 def build(md_path: Path, out_path: Path, cfg: dict) -> int:
     """
     Builds a target document from a Markdown source: renders Mermaid diagrams, rewrites the Markdown, runs Pandoc, and optionally emits a manifest and cleans intermediates.
@@ -116,6 +136,7 @@ def build(md_path: Path, out_path: Path, cfg: dict) -> int:
     if res.returncode != 0:
         sys.stderr.write(res.stderr or res.stdout or "")
         return res.returncode
+    _strip_quarantine(out_path)
     print(f"[md2x] wrote {out_path} ({out_path.stat().st_size} bytes)")
 
     if cfg["advanced"].get("emit_manifest"):
