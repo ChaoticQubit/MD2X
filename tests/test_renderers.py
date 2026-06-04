@@ -1,6 +1,6 @@
 import stat
 from pathlib import Path
-import md2pdf.renderers as rnd
+import md2x.renderers as rnd
 
 CFG = {
     "mermaid": {"theme": "default", "background": "white", "prefer": "auto"},

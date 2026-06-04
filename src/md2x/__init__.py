@@ -1,6 +1,6 @@
-"""md2pdf — Markdown (+Mermaid) → PDF. Local-only binary resolution.
+"""md2x — Markdown (+Mermaid) → PDF. Local-only binary resolution.
 
-Public API re-exported for convenience and back-compat (see root md2pdf.py shim).
+Public API re-exported for convenience and back-compat (see root md2x.py shim).
 """
 from .paths import ensure_venv_yaml, PROJECT_ROOT
 

@@ -1,4 +1,4 @@
-import md2pdf.mermaid as mm
+import md2x.mermaid as mm
 
 
 def test_extract_caption_title_hint():

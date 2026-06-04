@@ -1,6 +1,6 @@
 from pathlib import Path
-import md2pdf.pandoc as pandoc
-from md2pdf.config import DEFAULTS, deep_merge
+import md2x.pandoc as pandoc
+from md2x.config import DEFAULTS, deep_merge
 
 
 def _cmd(over=None):

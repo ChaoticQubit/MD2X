@@ -36,14 +36,14 @@ def build(md_path: Path, out_path: Path, cfg: dict) -> int:
         sys.stderr.write("WARN: neither mmdc nor dot found — Mermaid blocks "
                          "will be kept as code blocks.\n")
 
-    print(f"[md2pdf] pandoc:  {pandoc_bin}")
-    print(f"[md2pdf] xelatex: {xelatex_bin}")
-    print(f"[md2pdf] mmdc:    {mmdc_bin or '(none)'}")
-    print(f"[md2pdf] dot:     {dot_bin or '(none)'}")
+    print(f"[md2x] pandoc:  {pandoc_bin}")
+    print(f"[md2x] xelatex: {xelatex_bin}")
+    print(f"[md2x] mmdc:    {mmdc_bin or '(none)'}")
+    print(f"[md2x] dot:     {dot_bin or '(none)'}")
 
     md = md_path.read_text(encoding="utf-8")
     blocks = list(MERMAID_RE.finditer(md))
-    print(f"[md2pdf] found {len(blocks)} mermaid blocks in {md_path.name}")
+    print(f"[md2x] found {len(blocks)} mermaid blocks in {md_path.name}")
 
     chunks: list[str] = []
     last_end = 0
@@ -89,21 +89,21 @@ def build(md_path: Path, out_path: Path, cfg: dict) -> int:
     chunks.append(md[last_end:])
     rewritten = "".join(chunks)
 
-    tmp_md = work_dir / (md_path.stem + "._md2pdf.md")
+    tmp_md = work_dir / (md_path.stem + "._md2x.md")
     tmp_md.write_text(rewritten, encoding="utf-8")
 
     cmd = build_pandoc_cmd(tmp_md, out_path, cfg, pandoc_bin, xelatex_bin)
-    print(f"[md2pdf] running pandoc …")
+    print(f"[md2x] running pandoc …")
     res = subprocess.run(cmd, cwd=work_dir, capture_output=True, text=True)
     if res.returncode != 0:
         sys.stderr.write(res.stderr or res.stdout or "")
         return res.returncode
-    print(f"[md2pdf] wrote {out_path} ({out_path.stat().st_size} bytes)")
+    print(f"[md2x] wrote {out_path} ({out_path.stat().st_size} bytes)")
 
     if cfg["advanced"].get("emit_manifest"):
-        man_path = work_dir / (md_path.stem + "._md2pdf.json")
+        man_path = work_dir / (md_path.stem + "._md2x.json")
         man_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-        print(f"[md2pdf] manifest → {man_path}")
+        print(f"[md2x] manifest → {man_path}")
 
     if not cfg["advanced"].get("keep_intermediate"):
         try:

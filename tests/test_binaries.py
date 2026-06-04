@@ -1,6 +1,6 @@
 import stat
 from pathlib import Path
-import md2pdf.binaries as binaries
+import md2x.binaries as binaries
 
 
 def _make_exe(p: Path):

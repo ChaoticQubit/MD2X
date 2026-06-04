@@ -1,6 +1,6 @@
-# md2pdf.yaml
-# Default configuration for md2pdf. CLI flags override values here.
-# Drop a copy named `md2pdf.yaml` next to the markdown you're rendering
+# md2x.yaml
+# Default configuration for md2x. CLI flags override values here.
+# Drop a copy named `md2x.yaml` next to the markdown you're rendering
 # to override per-document; otherwise this file in the project root is used.
 #
 # Every section below is optional — missing values fall back to built-in
@@ -112,10 +112,10 @@ advanced:
   # Examples: ["--shift-heading-level-by=1", "--reference-doc=template.docx"]
   pandoc_extra_args: []
 
-  # When true, the intermediate <name>._md2pdf.md file is NOT deleted.
+  # When true, the intermediate <name>._md2x.md file is NOT deleted.
   keep_intermediate: false
 
-  # When true, write a render manifest (`<name>._md2pdf.json`) describing
+  # When true, write a render manifest (`<name>._md2x.json`) describing
   # every block that was rendered, its source, and the chosen renderer.
   emit_manifest: false
 

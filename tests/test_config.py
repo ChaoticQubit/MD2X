@@ -1,6 +1,6 @@
 import textwrap
 import argparse
-import md2pdf.config as config
+import md2x.config as config
 
 
 def test_deep_merge_override_wins_and_preserves():
@@ -23,7 +23,7 @@ def test_load_config_defaults_when_none(tmp_path):
 
 
 def test_load_config_sibling_yaml_overrides(tmp_path):
-    (tmp_path / "md2pdf.yaml").write_text(
+    (tmp_path / "md2x.yaml").write_text(
         textwrap.dedent("""
         page:
           margin: 2in

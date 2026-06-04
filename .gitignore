@@ -1,7 +1,7 @@
 # Generated artifacts
 *.pdf
-*._md2pdf.md
-*._md2pdf.json
+*._md2x.md
+*._md2x.json
 diagrams/
 **/diagrams/
 

@@ -6,9 +6,9 @@ Skipped unless pandoc + xelatex + dot all resolve. Uses the `dot` renderer
 import shutil
 from pathlib import Path
 import pytest
-from md2pdf.binaries import resolve_binary
-from md2pdf.config import DEFAULTS, deep_merge
-from md2pdf.pipeline import build
+from md2x.binaries import resolve_binary
+from md2x.config import DEFAULTS, deep_merge
+from md2x.pipeline import build
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SAMPLE = REPO_ROOT / "examples" / "sample.md"

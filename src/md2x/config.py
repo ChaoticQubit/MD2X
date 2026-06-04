@@ -26,7 +26,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "fonts": {
         # null = let xelatex use Computer Modern (always present, no fontspec
-        # lookup, no system-font dependency). Override in md2pdf.yaml.
+        # lookup, no system-font dependency). Override in md2x.yaml.
         "main": None,
         "sans": None,
         "mono": None,
@@ -99,17 +99,17 @@ def load_config(explicit: Path | None, md_path: Path) -> dict:
     if explicit:
         candidates.append(explicit)
     candidates += [
-        md_path.parent / "md2pdf.yaml",
-        md_path.parent / "md2pdf.yml",
-        PROJECT_ROOT / "md2pdf.yaml",
-        PROJECT_ROOT / "md2pdf.yml",
+        md_path.parent / "md2x.yaml",
+        md_path.parent / "md2x.yml",
+        PROJECT_ROOT / "md2x.yaml",
+        PROJECT_ROOT / "md2x.yml",
     ]
     for p in candidates:
         if p and p.exists():
             try:
                 import yaml
                 data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-                print(f"[md2pdf] using config {p}")
+                print(f"[md2x] using config {p}")
                 return deep_merge(DEFAULTS, data)
             except ImportError:
                 sys.stderr.write(f"WARN: PyYAML missing — skipping {p}\n")
@@ -117,5 +117,5 @@ def load_config(explicit: Path | None, md_path: Path) -> dict:
             except Exception as e:
                 sys.stderr.write(f"WARN: failed to parse {p}: {e}\n")
                 break
-    print("[md2pdf] using built-in defaults (no YAML found)")
+    print("[md2x] using built-in defaults (no YAML found)")
     return deep_merge(DEFAULTS, {})

@@ -1,9 +1,9 @@
-"""md2pdf CLI — argument parsing and entry point.
+"""md2x CLI — argument parsing and entry point.
 
 Convert Markdown (with Mermaid blocks) to PDF.
 
 Self-contained workflow:
-  1. Loads YAML config (md2pdf.yaml next to the input or in the project root).
+  1. Loads YAML config (md2x.yaml next to the input or in the project root).
   2. Resolves every binary (pandoc, xelatex, mmdc, dot) from the local
      install layout produced by install.sh, falling back to PATH:
        PROJECT/.bin/<name>
@@ -19,7 +19,7 @@ Self-contained workflow:
 CLI flags override YAML; YAML overrides built-in defaults.
 
 Usage:
-    ./md2pdf.py INPUT.md [-o OUTPUT.pdf] [--config md2pdf.yaml]
+    ./md2x.py INPUT.md [-o OUTPUT.pdf] [--config md2x.yaml]
                           [--toc-depth N] [--no-toc]
                           [--margin 0.85in] [--fontsize 10.5pt]
                           [--theme default|forest|dark|neutral]

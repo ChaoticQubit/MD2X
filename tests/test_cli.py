@@ -1,7 +1,7 @@
 import argparse
 import pytest
-import md2pdf.cli as cli
-from md2pdf.config import DEFAULTS, deep_merge
+import md2x.cli as cli
+from md2x.config import DEFAULTS, deep_merge
 
 
 def test_apply_cli_overrides_each_flag():
@@ -27,7 +27,7 @@ def test_apply_cli_overrides_noops_when_unset():
 
 
 def test_main_input_not_found_exits(monkeypatch, tmp_path):
-    monkeypatch.setattr("sys.argv", ["md2pdf", str(tmp_path / "nope.md")])
+    monkeypatch.setattr("sys.argv", ["md2x", str(tmp_path / "nope.md")])
     with pytest.raises(SystemExit):
         cli.main()
 
@@ -40,7 +40,7 @@ def test_main_default_output_suffix(monkeypatch, tmp_path):
         captured["out"] = out_path
         return 0
     monkeypatch.setattr(cli, "build", fake_build)
-    monkeypatch.setattr("sys.argv", ["md2pdf", str(md)])
+    monkeypatch.setattr("sys.argv", ["md2x", str(md)])
     assert cli.main() == 0
     assert captured["out"].name == "doc.pdf"
 
@@ -51,7 +51,7 @@ def test_main_flags_reach_config(monkeypatch, tmp_path):
     captured = {}
     monkeypatch.setattr(cli, "build",
                         lambda m, o, cfg: captured.update(cfg=cfg) or 0)
-    monkeypatch.setattr("sys.argv", ["md2pdf", str(md), "--no-toc", "--margin", "3in"])
+    monkeypatch.setattr("sys.argv", ["md2x", str(md), "--no-toc", "--margin", "3in"])
     cli.main()
     assert captured["cfg"]["output"]["toc"] is False
     assert captured["cfg"]["page"]["margin"] == "3in"
