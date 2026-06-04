@@ -1,7 +1,9 @@
 """End-to-end build: render diagrams, rewrite markdown, run pandoc."""
 from __future__ import annotations
 
+import ctypes
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -13,19 +15,42 @@ from .pandoc import build_cmd
 from .formats import detect_target
 
 
-def _strip_quarantine(path: Path) -> None:
-    """Remove the macOS com.apple.quarantine xattr from a freshly written file.
+_QUARANTINE_ATTR = "com.apple.quarantine"
 
-    Files written by a quarantined toolchain (e.g. a downloaded TeX/pandoc
-    binary) inherit the quarantine flag, which makes macOS Gatekeeper show a
-    spurious "could not verify ... is free of malware" warning on the locally
-    generated output. The file is our own product, so clear the flag.
+
+def _strip_quarantine(path: Path) -> None:
+    """Best-effort removal of the macOS com.apple.quarantine xattr from a file md2x wrote.
+
+    When md2x's output carries com.apple.quarantine, Gatekeeper shows a spurious
+    "<file> could not be verified ... free of malware" warning the first time the
+    user opens it. The file is md2x's own product, so clear the flag.
+
+    Self-contained and silent: removes the attribute through libSystem's
+    removexattr(2) directly, so it works on a stock macOS with no Command Line
+    Tools and without spawning a process; falls back to the `xattr` CLI only if
+    the direct call is unavailable. Never raises — cleanup must not fail a build
+    that already succeeded. (os.removexattr is Linux-only in CPython and absent
+    on macOS, so the libSystem call is the portable primitive here.)
+
+    Only clears quarantine present when the build finishes; a flag applied
+    afterwards — e.g. iCloud Drive re-materialising the file — is outside our
+    control.
     """
     if sys.platform != "darwin":
         return
     try:
+        libc = ctypes.CDLL("libSystem.B.dylib", use_errno=True)
+        libc.removexattr.argtypes = (ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int)
+        libc.removexattr.restype = ctypes.c_int
+        # options=0 -> follow symlinks to the real file. A missing attribute
+        # (ENOATTR) just returns -1, which we deliberately ignore.
+        libc.removexattr(os.fsencode(str(path)), _QUARANTINE_ATTR.encode(), 0)
+        return
+    except Exception:
+        pass
+    try:
         subprocess.run(
-            ["/usr/bin/xattr", "-d", "com.apple.quarantine", str(path)],
+            ["/usr/bin/xattr", "-d", _QUARANTINE_ATTR, str(path)],
             capture_output=True,
             check=False,
         )
