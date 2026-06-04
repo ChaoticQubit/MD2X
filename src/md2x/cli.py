@@ -56,7 +56,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description="Convert Markdown (with Mermaid blocks) to PDF."
     )
-    ap.add_argument("input", type=Path, help="Path to source .md")
+    ap.add_argument("input", nargs="?", type=Path, default=None,
+                    help="Path to source .md")
     ap.add_argument("-o", "--output", type=Path, default=None,
                     help="Output .pdf path (default: alongside input)")
     ap.add_argument("-c", "--config", type=Path, default=None,
@@ -74,8 +75,18 @@ def main() -> int:
                     help="Mermaid theme")
     ap.add_argument("--keep-intermediate", action="store_true",
                     help="Don't delete the intermediate .md")
+    ap.add_argument("--check", action="store_true",
+                    help="Print resolved binary paths and exit")
     args = ap.parse_args()
 
+    if args.check:
+        from .binaries import resolve_binary
+        for n in ("pandoc", "xelatex", "mmdc", "dot"):
+            print(f"  {n:8s} {resolve_binary(n) or 'MISSING'}")
+        return 0
+
+    if args.input is None:
+        ap.error("input is required (or use --check)")
     if not args.input.exists():
         sys.exit(f"input not found: {args.input}")
 

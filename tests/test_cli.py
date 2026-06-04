@@ -78,3 +78,13 @@ def test_main_output_extension_infers_format(monkeypatch, tmp_path):
     monkeypatch.setattr("sys.argv", ["md2x", str(md), "-o", str(tmp_path / "x.html")])
     cli.main()
     assert captured["cfg"]["output"]["format"] == "html"
+
+
+def test_main_check_prints_binaries_and_exits(monkeypatch, capsys):
+    monkeypatch.setattr("md2x.binaries.resolve_binary",
+                        lambda name, override=None: f"/fake/{name}")
+    monkeypatch.setattr("sys.argv", ["md2x", "--check"])
+    assert cli.main() == 0
+    out = capsys.readouterr().out
+    assert "pandoc" in out and "/fake/pandoc" in out
+    assert "xelatex" in out and "mmdc" in out and "dot" in out

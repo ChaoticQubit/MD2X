@@ -29,7 +29,7 @@ install:
 	@./install.sh
 
 check:
-	@$(PY) _check.py
+	@PYTHONPATH=src $(PY) -m md2x --check
 
 test:
 	@.venv/bin/python -m pytest
