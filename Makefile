@@ -8,7 +8,7 @@
 #   make distclean          — also remove .venv / .tools / node_modules
 
 PY ?= python3
-SCRIPT := md2x.py
+RUN := PYTHONPATH=src $(PY) -m md2x
 SAMPLE := examples/sample.md
 IN ?=
 
@@ -35,11 +35,11 @@ test:
 	@.venv/bin/python -m pytest
 
 sample: $(SAMPLE)
-	@$(PY) $(SCRIPT) $(SAMPLE)
+	@$(RUN) $(SAMPLE)
 
 pdf:
 	@if [ -z "$(IN)" ]; then echo "Usage: make pdf IN=path/to/file.md"; exit 1; fi
-	@$(PY) $(SCRIPT) $(IN)
+	@$(RUN) $(IN)
 
 clean:
 	@find . -name "*._md2x.md" -delete

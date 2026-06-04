@@ -12,7 +12,7 @@
 #   source .venv/bin/activate
 #   export PATH="$PWD/.bin:$PATH"
 #
-# Or just run ./md2x.py — it auto-detects the local layout.
+# Or just run: .venv/bin/md2x   (or "md2x" after activating .venv) — it auto-detects the local layout.
 #
 # Requirements on the host: bash, curl, tar, python3 (>= 3.10), uname.
 # Internet access to download pandoc + TinyTeX + npm packages.
@@ -71,8 +71,9 @@ fi
 source "$VENV/bin/activate"
 python -m pip install --quiet --upgrade pip
 python -m pip install --quiet pyyaml pytest
+python -m pip install --quiet -e .
 deactivate
-echo "       PyYAML + pytest installed in .venv"
+echo "       PyYAML + pytest + md2x (editable) installed in .venv"
 
 # ──────────────────────────────────────────────────────────────────────────
 # 2. Node (local) + mmdc
@@ -214,5 +215,5 @@ echo
 color "==> install complete. local binaries:"
 ls -1 "$BIN" | sed 's/^/    /'
 echo
-echo "Run a smoke test:    ./md2x.py examples/sample.md"
+echo "Run a smoke test:    .venv/bin/md2x examples/sample.md"
 echo "Activate for shell:  source .venv/bin/activate && export PATH=\"\$PWD/.bin:\$PATH\""
