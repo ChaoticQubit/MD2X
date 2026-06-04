@@ -13,7 +13,7 @@ DEFAULTS: dict[str, Any] = {
     "output": {
         "toc": True,
         "toc_depth": 2,
-        "default_suffix": ".pdf",
+        "format": None,  # null = infer from output extension (defaults to pdf)
         "number_sections": False,
         "citation_processing": False,
     },
@@ -26,7 +26,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "fonts": {
         # null = let xelatex use Computer Modern (always present, no fontspec
-        # lookup, no system-font dependency). Override in md2pdf.yaml.
+        # lookup, no system-font dependency). Override in md2x.yaml.
         "main": None,
         "sans": None,
         "mono": None,
@@ -94,22 +94,31 @@ def deep_merge(base: dict, over: dict) -> dict:
 
 
 def load_config(explicit: Path | None, md_path: Path) -> dict:
-    """Find and load YAML config; fall back to defaults."""
+    """
+    Load YAML configuration from disk (searching several candidate locations) and merge it with built-in defaults.
+    
+    Parameters:
+        explicit (Path | None): An explicit config file path to try first. If None, the explicit candidate is skipped.
+        md_path (Path): Path to the Markdown file; its parent directory is searched for local `md2x.yaml`/`md2x.yml` files.
+    
+    Returns:
+        dict: Configuration dictionary produced by deep-merging the built-in DEFAULTS with any YAML data found (YAML values override defaults). If no valid YAML is found, returns a copy of DEFAULTS.
+    """
     candidates: list[Path] = []
     if explicit:
         candidates.append(explicit)
     candidates += [
-        md_path.parent / "md2pdf.yaml",
-        md_path.parent / "md2pdf.yml",
-        PROJECT_ROOT / "md2pdf.yaml",
-        PROJECT_ROOT / "md2pdf.yml",
+        md_path.parent / "md2x.yaml",
+        md_path.parent / "md2x.yml",
+        PROJECT_ROOT / "md2x.yaml",
+        PROJECT_ROOT / "md2x.yml",
     ]
     for p in candidates:
         if p and p.exists():
             try:
                 import yaml
                 data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-                print(f"[md2pdf] using config {p}")
+                print(f"[md2x] using config {p}")
                 return deep_merge(DEFAULTS, data)
             except ImportError:
                 sys.stderr.write(f"WARN: PyYAML missing — skipping {p}\n")
@@ -117,5 +126,5 @@ def load_config(explicit: Path | None, md_path: Path) -> dict:
             except Exception as e:
                 sys.stderr.write(f"WARN: failed to parse {p}: {e}\n")
                 break
-    print("[md2pdf] using built-in defaults (no YAML found)")
+    print("[md2x] using built-in defaults (no YAML found)")
     return deep_merge(DEFAULTS, {})

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-MERMAID_RE = re.compile(r"```mermaid\s*\n(.*?)\n```", re.DOTALL)
+MERMAID_RE = re.compile(r"```mermaid\s*\n(.*?)\n?```", re.DOTALL)
 CAPTION_HINT_RE = re.compile(
     r"^\s*(?:title|%%\s*title)\s+(.+?)\s*$",
     re.IGNORECASE | re.MULTILINE,
@@ -57,7 +57,7 @@ def mermaid_to_dot(source: str) -> str | None:
     edges: list[tuple[str, str, str, str]] = []
     for raw in source.splitlines()[1:]:
         line = raw.strip()
-        if not line or line.startswith(("%", "subgraph", "end", "classDef",
+        if not line or line.startswith(("%", "subgraph ", "end ", "classDef",
                                         "click", "style", "linkStyle")):
             continue
         em = MERMAID_EDGE_RE.match(line)

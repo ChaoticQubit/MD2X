@@ -1,4 +1,4 @@
-# md2pdf — convenience targets
+# md2x — convenience targets
 #
 #   make install            — run local-only installer (.venv + .tools/ + node_modules/)
 #   make check              — show which binaries are resolved
@@ -8,7 +8,7 @@
 #   make distclean          — also remove .venv / .tools / node_modules
 
 PY ?= python3
-SCRIPT := md2pdf.py
+RUN := PYTHONPATH=src $(PY) -m md2x
 SAMPLE := examples/sample.md
 IN ?=
 
@@ -29,21 +29,21 @@ install:
 	@./install.sh
 
 check:
-	@$(PY) _check.py
+	@PYTHONPATH=src $(PY) -m md2x --check
 
 test:
 	@.venv/bin/python -m pytest
 
 sample: $(SAMPLE)
-	@$(PY) $(SCRIPT) $(SAMPLE)
+	@$(RUN) $(SAMPLE)
 
 pdf:
 	@if [ -z "$(IN)" ]; then echo "Usage: make pdf IN=path/to/file.md"; exit 1; fi
-	@$(PY) $(SCRIPT) $(IN)
+	@$(RUN) $(IN)
 
 clean:
-	@find . -name "*._md2pdf.md" -delete
-	@find . -name "*._md2pdf.json" -delete
+	@find . -name "*._md2x.md" -delete
+	@find . -name "*._md2x.json" -delete
 	@find examples -name "*.pdf" -delete 2>/dev/null || true
 	@rm -rf examples/diagrams 2>/dev/null || true
 	@echo "cleaned generated files"

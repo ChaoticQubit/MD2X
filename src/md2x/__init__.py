@@ -1,10 +1,8 @@
-"""md2pdf — Markdown (+Mermaid) → PDF. Local-only binary resolution.
+"""md2x — Markdown (+Mermaid) → PDF / DOCX / HTML / EPUB / LaTeX.
 
-Public API re-exported for convenience and back-compat (see root md2pdf.py shim).
+Public API re-exported for convenience (used by tests and external callers).
 """
 from .paths import ensure_venv_yaml, PROJECT_ROOT
-
-ensure_venv_yaml()
 
 from .config import DEFAULTS, deep_merge, load_config       # noqa: E402
 from .binaries import resolve_binary                        # noqa: E402

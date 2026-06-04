@@ -1,8 +1,8 @@
 {
-  "name": "md2pdf",
+  "name": "md2x",
   "version": "1.0.0",
   "private": true,
-  "description": "Local-only Mermaid renderer + Pandoc PDF pipeline. No globals.",
+  "description": "Local-only Mermaid renderer for md2x (Markdown to PDF/DOCX/HTML/EPUB/LaTeX). No globals.",
   "scripts": {
     "render": "mmdc"
   },

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — LOCAL install of every md2pdf dependency. Nothing global.
+# install.sh — LOCAL install of every md2x dependency. Nothing global.
 #
 # After this finishes, the project folder is fully self-contained:
 #   .venv/               Python virtualenv (PyYAML for config parsing)
@@ -12,7 +12,7 @@
 #   source .venv/bin/activate
 #   export PATH="$PWD/.bin:$PATH"
 #
-# Or just run ./md2pdf.py — it auto-detects the local layout.
+# Or just run: .venv/bin/md2x   (or "md2x" after activating .venv) — it auto-detects the local layout.
 #
 # Requirements on the host: bash, curl, tar, python3 (>= 3.10), uname.
 # Internet access to download pandoc + TinyTeX + npm packages.
@@ -54,7 +54,7 @@ case "$ARCH" in
     *)              die "unsupported arch: $ARCH" ;;
 esac
 
-color "==> md2pdf local installer"
+color "==> md2x local installer"
 echo "    project root: $HERE"
 echo "    OS=$OS arch=$ARCH"
 echo "    pandoc=$PANDOC_VERSION node=$NODE_VERSION"
@@ -71,8 +71,9 @@ fi
 source "$VENV/bin/activate"
 python -m pip install --quiet --upgrade pip
 python -m pip install --quiet pyyaml pytest
+python -m pip install --quiet -e .
 deactivate
-echo "       PyYAML + pytest installed in .venv"
+echo "       PyYAML + pytest + md2x (editable) installed in .venv"
 
 # ──────────────────────────────────────────────────────────────────────────
 # 2. Node (local) + mmdc
@@ -171,7 +172,7 @@ if [[ -z "$TINYTEX_BIN" || ! -x "$TINYTEX_BIN/xelatex" ]]; then
 fi
 export PATH="$TINYTEX_BIN:$PATH"
 
-# Install the LaTeX packages pandoc + md2pdf actually need.
+# Install the LaTeX packages pandoc + md2x actually need.
 # Pandoc's default PDF template pulls in: setspace, ulem, hyperref, xcolor,
 # geometry, fancyvrb, microtype, parskip, bookmark, soul, footmisc, etc.
 echo "       tlmgr install xetex + recommended fonts + pandoc preamble pkgs"
@@ -214,5 +215,5 @@ echo
 color "==> install complete. local binaries:"
 ls -1 "$BIN" | sed 's/^/    /'
 echo
-echo "Run a smoke test:    ./md2pdf.py examples/sample.md"
+echo "Run a smoke test:    .venv/bin/md2x examples/sample.md"
 echo "Activate for shell:  source .venv/bin/activate && export PATH=\"\$PWD/.bin:\$PATH\""

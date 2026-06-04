@@ -1,6 +1,6 @@
 import textwrap
 import argparse
-import md2pdf.config as config
+import md2x.config as config
 
 
 def test_deep_merge_override_wins_and_preserves():
@@ -23,7 +23,7 @@ def test_load_config_defaults_when_none(tmp_path):
 
 
 def test_load_config_sibling_yaml_overrides(tmp_path):
-    (tmp_path / "md2pdf.yaml").write_text(
+    (tmp_path / "md2x.yaml").write_text(
         textwrap.dedent("""
         page:
           margin: 2in
@@ -61,3 +61,7 @@ def test_load_config_malformed_yaml_falls_back(tmp_path, capsys):
     cfg = config.load_config(bad, md)
     assert cfg["page"]["margin"] == "0.85in"
     assert "WARN" in capsys.readouterr().err
+
+
+def test_defaults_have_format_none():
+    assert config.DEFAULTS["output"]["format"] is None

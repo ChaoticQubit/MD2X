@@ -6,9 +6,9 @@ Skipped unless pandoc + xelatex + dot all resolve. Uses the `dot` renderer
 import shutil
 from pathlib import Path
 import pytest
-from md2pdf.binaries import resolve_binary
-from md2pdf.config import DEFAULTS, deep_merge
-from md2pdf.pipeline import build
+from md2x.binaries import resolve_binary
+from md2x.config import DEFAULTS, deep_merge
+from md2x.pipeline import build
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SAMPLE = REPO_ROOT / "examples" / "sample.md"
@@ -32,3 +32,32 @@ def test_real_md_to_pdf(tmp_path):
     assert out.read_bytes()[:4] == b"%PDF"
     # the flowchart block was rendered to a real PNG
     assert (tmp_path / "diagrams" / "mermaid_01.png").exists()
+
+
+_HAVE_PANDOC = bool(resolve_binary("pandoc"))
+
+
+@pytest.mark.skipif(not _HAVE_PANDOC, reason="pandoc not resolvable")
+def test_real_md_to_docx(tmp_path):
+    """
+    End-to-end test that converts the example Markdown to DOCX using the real build pipeline and verifies the produced file.
+    
+    The test forces the Mermaid renderer preference to "dot" (so diagrams are rendered when a renderer is available; if not, Mermaid blocks degrade to source text and the DOCX still builds). It is skipped when Pandoc is not available.
+    
+    Verifications:
+    - the build process exits with code 0;
+    - the output .docx file exists;
+    - the output file is larger than 1024 bytes;
+    - the output file begins with the ZIP container signature (`b"PK\x03\x04"`).
+    """
+    work = tmp_path / "doc.md"
+    shutil.copy(SAMPLE, work)
+    out = tmp_path / "doc.docx"
+    # Force dot renderer; if no renderer is present the Mermaid block degrades
+    # to source text and the DOCX still builds (pandoc-only path).
+    cfg = deep_merge(DEFAULTS, {"mermaid": {"prefer": "dot"}})
+    rc = build(work, out, cfg)
+    assert rc == 0
+    assert out.exists()
+    assert out.stat().st_size > 1024
+    assert out.read_bytes()[:4] == b"PK\x03\x04"  # .docx is a zip container
