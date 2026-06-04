@@ -1,4 +1,4 @@
-"""md2x — Markdown (+Mermaid) → PDF. Local-only binary resolution.
+"""md2x — Markdown (+Mermaid) → PDF / DOCX / HTML / EPUB / LaTeX.
 
 Public API re-exported for convenience and back-compat (see root md2x.py shim).
 """
