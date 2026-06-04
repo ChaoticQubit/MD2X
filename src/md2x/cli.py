@@ -33,6 +33,7 @@ from pathlib import Path
 
 from .config import load_config
 from .pipeline import build
+from .formats import detect_target
 
 
 def apply_cli_overrides(cfg: dict, args: argparse.Namespace) -> dict:
@@ -60,6 +61,9 @@ def main() -> int:
                     help="Output .pdf path (default: alongside input)")
     ap.add_argument("-c", "--config", type=Path, default=None,
                     help="Explicit YAML config file")
+    ap.add_argument("-t", "--to", default=None,
+                    choices=["pdf", "docx", "html", "epub", "latex"],
+                    help="Output format (default: infer from -o extension, else pdf)")
     ap.add_argument("--no-toc", action="store_true", help="Disable ToC")
     ap.add_argument("--toc-depth", type=int, default=None,
                     help="Heading depth for ToC")
@@ -78,5 +82,8 @@ def main() -> int:
     cfg = load_config(args.config, args.input)
     cfg = apply_cli_overrides(cfg, args)
 
-    out = args.output or args.input.with_suffix(cfg["output"]["default_suffix"])
+    # Resolve format once; write it back so build() is authoritative.
+    target = detect_target(args.output, args.to or cfg["output"].get("format"))
+    cfg["output"]["format"] = target.name
+    out = args.output or args.input.with_suffix(target.suffix)
     return build(args.input, out, cfg)

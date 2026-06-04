@@ -55,3 +55,26 @@ def test_main_flags_reach_config(monkeypatch, tmp_path):
     cli.main()
     assert captured["cfg"]["output"]["toc"] is False
     assert captured["cfg"]["page"]["margin"] == "3in"
+
+
+def test_main_to_flag_sets_output_suffix(monkeypatch, tmp_path):
+    md = tmp_path / "doc.md"
+    md.write_text("# hi")
+    captured = {}
+    monkeypatch.setattr(cli, "build",
+                        lambda m, o, cfg: captured.update(out=o, cfg=cfg) or 0)
+    monkeypatch.setattr("sys.argv", ["md2x", str(md), "--to", "docx"])
+    assert cli.main() == 0
+    assert captured["out"].name == "doc.docx"
+    assert captured["cfg"]["output"]["format"] == "docx"
+
+
+def test_main_output_extension_infers_format(monkeypatch, tmp_path):
+    md = tmp_path / "doc.md"
+    md.write_text("# hi")
+    captured = {}
+    monkeypatch.setattr(cli, "build",
+                        lambda m, o, cfg: captured.update(cfg=cfg) or 0)
+    monkeypatch.setattr("sys.argv", ["md2x", str(md), "-o", str(tmp_path / "x.html")])
+    cli.main()
+    assert captured["cfg"]["output"]["format"] == "html"
