@@ -39,6 +39,17 @@ _HAVE_PANDOC = bool(resolve_binary("pandoc"))
 
 @pytest.mark.skipif(not _HAVE_PANDOC, reason="pandoc not resolvable")
 def test_real_md_to_docx(tmp_path):
+    """
+    End-to-end test that converts the example Markdown to DOCX using the real build pipeline and verifies the produced file.
+    
+    The test forces the Mermaid renderer preference to "dot" (so diagrams are rendered when a renderer is available; if not, Mermaid blocks degrade to source text and the DOCX still builds). It is skipped when Pandoc is not available.
+    
+    Verifications:
+    - the build process exits with code 0;
+    - the output .docx file exists;
+    - the output file is larger than 1024 bytes;
+    - the output file begins with the ZIP container signature (`b"PK\x03\x04"`).
+    """
     work = tmp_path / "doc.md"
     shutil.copy(SAMPLE, work)
     out = tmp_path / "doc.docx"

@@ -94,7 +94,16 @@ def deep_merge(base: dict, over: dict) -> dict:
 
 
 def load_config(explicit: Path | None, md_path: Path) -> dict:
-    """Find and load YAML config; fall back to defaults."""
+    """
+    Load YAML configuration from disk (searching several candidate locations) and merge it with built-in defaults.
+    
+    Parameters:
+        explicit (Path | None): An explicit config file path to try first. If None, the explicit candidate is skipped.
+        md_path (Path): Path to the Markdown file; its parent directory is searched for local `md2x.yaml`/`md2x.yml` files.
+    
+    Returns:
+        dict: Configuration dictionary produced by deep-merging the built-in DEFAULTS with any YAML data found (YAML values override defaults). If no valid YAML is found, returns a copy of DEFAULTS.
+    """
     candidates: list[Path] = []
     if explicit:
         candidates.append(explicit)

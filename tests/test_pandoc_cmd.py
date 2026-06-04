@@ -5,6 +5,15 @@ from md2x.formats import TARGETS
 
 
 def _cmd(over=None):
+    """
+    Builds the pandoc command list to produce out.pdf from in.md using XeLaTeX.
+    
+    Parameters:
+        over (dict | None): Optional overrides merged into DEFAULTS; keys follow the configuration schema used by the pandoc builder.
+    
+    Returns:
+        cmd (list[str]): Ordered list of command-line arguments for invoking pandoc to generate out.pdf with the XeLaTeX PDF engine.
+    """
     cfg = deep_merge(DEFAULTS, over or {})
     return pandoc.build_pandoc_cmd(Path("in.md"), Path("out.pdf"), cfg, "pandoc", "xelatex")
 
@@ -72,6 +81,16 @@ def test_pdf_command_snapshot():
 
 
 def _gen(target_name, over=None):
+    """
+    Builds a pandoc command for the specified output target by merging defaults with optional overrides.
+    
+    Parameters:
+        target_name (str): Key identifying the target in TARGETS (e.g., "pdf", "docx", "html").
+        over (dict, optional): Configuration overrides that are deep-merged into DEFAULTS.
+    
+    Returns:
+        list: Ordered list of command-line arguments for invoking pandoc to produce the target output.
+    """
     cfg = deep_merge(DEFAULTS, over or {})
     t = TARGETS[target_name]
     return pandoc.build_generic_cmd(Path("in.md"), Path("out" + t.suffix), cfg, "pandoc", t)
@@ -107,6 +126,11 @@ def test_generic_toc_toggle_off():
 
 
 def test_build_cmd_dispatch():
+    """
+    Ensure pandoc.build_cmd selects correct flags and format-specific options for PDF and DOCX outputs.
+    
+    Verifies that the command built for the PDF target includes the `--pdf-engine=xelatex` flag, and that the command built for the DOCX target does not include that flag and selects the docx format (contains `-t` and `docx`).
+    """
     cfg = deep_merge(DEFAULTS, {})
     pdf = pandoc.build_cmd(Path("in.md"), Path("out.pdf"), cfg, TARGETS["pdf"], "pandoc", "xelatex")
     assert "--pdf-engine=xelatex" in pdf

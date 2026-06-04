@@ -14,6 +14,20 @@ from .formats import detect_target
 
 
 def build(md_path: Path, out_path: Path, cfg: dict) -> int:
+    """
+    Builds a target document from a Markdown source: renders Mermaid diagrams, rewrites the Markdown, runs Pandoc, and optionally emits a manifest and cleans intermediates.
+    
+    Parameters:
+        md_path (Path): Path to the input Markdown file.
+        out_path (Path): Path for the generated output file.
+        cfg (dict): Configuration dictionary controlling binaries, image and Mermaid handling, output format, and advanced options.
+    
+    Returns:
+        int: `0` on success, or the Pandoc process exit code on failure.
+    
+    Raises:
+        SystemExit: If overwrite is disallowed and the output exists; if required binaries (pandoc, or xelatex when the chosen target needs it) are missing; or if a Mermaid block fails to render and `cfg["mermaid"]["on_failure"]` is set to `"error"`.
+    """
     md_path = md_path.resolve()
     out_path = out_path.resolve()
     target = detect_target(out_path, cfg["output"].get("format"))
