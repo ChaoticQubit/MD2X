@@ -54,12 +54,14 @@ def apply_cli_overrides(cfg: dict, args: argparse.Namespace) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Convert Markdown (with Mermaid blocks) to PDF."
+        description="Convert Markdown (with Mermaid diagrams) to "
+                    "PDF, DOCX, HTML, EPUB, or LaTeX."
     )
     ap.add_argument("input", nargs="?", type=Path, default=None,
                     help="Path to source .md")
     ap.add_argument("-o", "--output", type=Path, default=None,
-                    help="Output .pdf path (default: alongside input)")
+                    help="Output file path; format inferred from its extension "
+                         "(default: alongside input, as PDF)")
     ap.add_argument("-c", "--config", type=Path, default=None,
                     help="Explicit YAML config file")
     ap.add_argument("-t", "--to", default=None,
