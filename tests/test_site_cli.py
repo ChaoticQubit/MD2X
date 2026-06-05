@@ -57,4 +57,4 @@ def test_apply_site_overrides_noops_when_none():
     cfg = config.deep_merge(config.DEFAULTS, {})
     _apply_site_overrides(cfg, _site_args())
     assert cfg["site"]["archetype"] == "reading"      # default preserved
-    assert cfg["ai"]["model"] == "anthropic:claude-sonnet-4-5"
+    assert cfg["ai"]["model"] == "anthropic:claude-sonnet-4-6"

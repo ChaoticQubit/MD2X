@@ -18,6 +18,11 @@ def build_model(ai_cfg: dict, role: str = "model") -> Any:
     provider = spec.get("provider", "openai-like")
     if provider == "openai-like":
         from agno.models.openai.like import OpenAILike
+        if "api_key_env" not in spec:
+            raise ValueError(
+                "openai-like provider requires 'api_key_env' in the model spec "
+                "(the name of the env var holding the API key)"
+            )
         key_env = spec["api_key_env"]
         api_key = os.environ.get(key_env)
         if not api_key:

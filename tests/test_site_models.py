@@ -3,8 +3,8 @@ from md2x.site.models import build_model
 
 
 def test_string_model_passthrough():
-    assert build_model({"model": "anthropic:claude-sonnet-4-5"}) == \
-        "anthropic:claude-sonnet-4-5"
+    assert build_model({"model": "anthropic:claude-sonnet-4-6"}) == \
+        "anthropic:claude-sonnet-4-6"
 
 
 def test_role_override_used_when_present():

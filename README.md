@@ -92,7 +92,7 @@ md2x site docs/ --deploy vercel  # needs VERCEL_TOKEN
 ```
 
 **Model & provider agnostic.** Set `ai.model` in `md2x.yaml`:
-`"anthropic:claude-sonnet-4-5"`, `"openai:gpt-4o"`, `"groq:llama-3.3-70b"`, … or
+`"anthropic:claude-sonnet-4-6"`, `"openai:gpt-4o"`, `"groq:llama-3.3-70b-versatile"`, … or
 point at any OpenAI-compatible/local endpoint with a `provider: openai-like`
 block (`id` + `base_url` + `api_key_env`). Switching models is one config line —
 `md2x[ai]` bundles the provider SDKs (via `agno[models]`), so any of them works

@@ -10,7 +10,7 @@ def test_defaults_have_site_block():
 
 def test_defaults_have_ai_block():
     cfg = config.deep_merge(config.DEFAULTS, {})
-    assert cfg["ai"]["model"] == "anthropic:claude-sonnet-4-5"
+    assert cfg["ai"]["model"] == "anthropic:claude-sonnet-4-6"
     assert cfg["ai"]["concurrency"] == 4
 
 

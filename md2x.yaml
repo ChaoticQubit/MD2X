@@ -144,7 +144,7 @@ ai:
   # Native providers — "provider:model_id". md2x[ai] bundles every provider SDK
   # (via agno[models]), so any of these work out of the box; the key is read
   # from the provider's own env var (e.g. ANTHROPIC_API_KEY, OPENAI_API_KEY):
-  model: "anthropic:claude-sonnet-4-5"
+  model: "anthropic:claude-sonnet-4-6"
   # OR any OpenAI-compatible / local endpoint (openai SDK is already bundled):
   # model:
   #   provider: openai-like

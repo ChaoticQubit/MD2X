@@ -86,7 +86,7 @@ DEFAULTS: dict[str, Any] = {
         "recursive": True,
     },
     "ai": {
-        "model": "anthropic:claude-sonnet-4-5",
+        "model": "anthropic:claude-sonnet-4-6",
         "architect_model": None,
         "page_model": None,
         "temperature": 0.4,
