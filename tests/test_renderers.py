@@ -1,4 +1,5 @@
 import stat
+import pytest
 from pathlib import Path
 import md2x.renderers as rnd
 
@@ -53,3 +54,39 @@ def test_render_via_dot_invokes_stub(tmp_path):
     ok = rnd.render_via_dot("flowchart TD\nA[Start]-->B[End]", out, CFG, _fake_dot(tmp_path))
     assert ok is True
     assert out.exists() and out.stat().st_size > 0
+
+
+def _cfg():
+    import md2x.config as config
+    return config.deep_merge(config.DEFAULTS, {})
+
+
+def test_render_into_markdown_no_blocks_returns_input(tmp_path):
+    md = "# Title\n\nplain text, no diagrams.\n"
+    out, manifest = rnd.render_into_markdown(md, tmp_path, _cfg(), None, None)
+    assert out == md
+    assert manifest == []
+
+
+def test_render_into_markdown_keeps_source_when_no_renderer(tmp_path):
+    md = "intro\n\n```mermaid\nflowchart LR\nA-->B\n```\n\nafter\n"
+    cfg = _cfg()  # on_failure default == keep_source
+    out, manifest = rnd.render_into_markdown(md, tmp_path, cfg, None, None)
+    assert len(manifest) == 1
+    assert manifest[0]["ok"] is False
+    assert "Mermaid source preserved" in out
+    assert "intro" in out and "after" in out
+
+
+def test_render_into_markdown_error_policy_raises(tmp_path):
+    md = "```mermaid\nflowchart LR\nA-->B\n```\n"
+    cfg = _cfg()
+    cfg["mermaid"]["on_failure"] = "error"
+    with pytest.raises(rnd.MermaidRenderError):
+        rnd.render_into_markdown(md, tmp_path, cfg, None, None)
+
+
+def test_render_into_markdown_diag_subdir_namespaces_dir(tmp_path):
+    rnd.render_into_markdown("no diagrams here\n", tmp_path, _cfg(),
+                             None, None, diag_subdir="intro")
+    assert (tmp_path / "diagrams" / "intro").is_dir()

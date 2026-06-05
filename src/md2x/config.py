@@ -75,6 +75,32 @@ DEFAULTS: dict[str, Any] = {
         "emit_manifest": False,
         "no_clobber": False,
     },
+    "site": {
+        "title": None,               # site/index title; None -> "Documentation"
+        "layout": "auto",            # auto | multi-page | single-page
+        "archetype": "reading",      # reading|presentation|flyer|product|docs|report|custom
+        "style_prompt": "",
+        "fidelity": "light-enhance", # preserve | light-enhance
+        "theme": {"accent": "#2563eb", "dark_mode": True},
+        "features": ["search", "animations", "smooth-scroll"],
+        "recursive": True,
+    },
+    "ai": {
+        "model": "anthropic:claude-sonnet-4-6",
+        "architect_model": None,
+        "page_model": None,
+        "temperature": 0.4,
+        "max_tokens": None,
+        "concurrency": 4,
+        "retries": 2,
+    },
+    "deploy": {
+        "provider": "vercel",
+        "token_env": "VERCEL_TOKEN",
+        "project": None,
+        "team_id": None,
+        "production": True,
+    },
 }
 
 

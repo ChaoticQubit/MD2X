@@ -76,6 +76,38 @@ md2x --check                      # show which binaries were found
 
 Format is taken from `--to`, else inferred from the `-o` extension, else PDF. Page/font/color settings apply to PDF only.
 
+## AI reading-site (`md2x site`)
+
+Turn a folder of Markdown into a polished, navigable website — multi-page by
+default, single-page optional — with one-click deploy to Vercel.
+
+```bash
+pip install 'md2x[ai]'           # agno + every provider SDK (works out of the box)
+export ANTHROPIC_API_KEY=sk-...  # or any provider's key (see below)
+
+md2x site docs/                  # generates ./site
+md2x site docs/ --archetype flyer --layout single-page
+md2x site docs/ --no-ai          # deterministic, no LLM/network
+md2x site docs/ --deploy vercel  # needs VERCEL_TOKEN
+```
+
+**Model & provider agnostic.** Set `ai.model` in `md2x.yaml`:
+`"anthropic:claude-sonnet-4-6"`, `"openai:gpt-4o"`, `"groq:llama-3.3-70b-versatile"`, … or
+point at any OpenAI-compatible/local endpoint with a `provider: openai-like`
+block (`id` + `base_url` + `api_key_env`). Switching models is one config line —
+`md2x[ai]` bundles the provider SDKs (via `agno[models]`), so any of them works
+with no extra installs; just set the model and its API-key env var.
+
+**Archetypes:** `reading` (default), `presentation`, `flyer`, `product`, `docs`,
+`report`, `custom` (drive it entirely from `site.style_prompt`).
+
+**Fidelity:** `preserve` or `light-enhance` (default). Your prose is always
+emitted verbatim — pandoc renders the body, the AI only builds the design,
+navigation, and additive aids (TL;DR, takeaways, related links).
+
+**Secrets** live in environment variables only; `md2x.yaml` just names them
+(`ai.model` provider keys, `deploy.token_env`). Safe to commit.
+
 ## Configuration
 
 Settings resolve in this order (first match wins): `--config` → `md2x.yaml` next to the input → `md2x.yaml` in the project root → built-in defaults. CLI flags override everything. See the annotated [`md2x.yaml`](./md2x.yaml) for every knob.
