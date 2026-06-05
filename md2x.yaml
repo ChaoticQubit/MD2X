@@ -129,6 +129,7 @@ advanced:
 # AI reading-site (`md2x site`) — requires: pip install md2x[ai]
 # ----------------------------------------------------------------------------
 site:
+  title: null               # site/index heading (null -> "Documentation")
   layout: auto              # auto | multi-page | single-page
   archetype: reading        # reading|presentation|flyer|product|docs|report|custom
   style_prompt: ""          # free-text nudge; full brief when archetype: custom
@@ -140,7 +141,8 @@ site:
   recursive: true           # recurse into directory inputs
 
 ai:
-  # Native providers — "provider:model_id" (key from the provider's env var):
+  # Native providers — "provider:model_id" (also: pip install <provider-sdk>,
+  # e.g. anthropic/openai/groq; key read from the provider's env var):
   model: "anthropic:claude-sonnet-4-5"
   # OR any OpenAI-compatible / local endpoint (also needs: pip install openai):
   # model:

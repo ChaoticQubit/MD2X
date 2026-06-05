@@ -76,6 +76,7 @@ DEFAULTS: dict[str, Any] = {
         "no_clobber": False,
     },
     "site": {
+        "title": None,               # site/index title; None -> "Documentation"
         "layout": "auto",            # auto | multi-page | single-page
         "archetype": "reading",      # reading|presentation|flyer|product|docs|report|custom
         "style_prompt": "",

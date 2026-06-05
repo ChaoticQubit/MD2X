@@ -83,6 +83,7 @@ default, single-page optional — with one-click deploy to Vercel.
 
 ```bash
 pip install 'md2x[ai]'           # adds agno + httpx
+pip install anthropic            # your model's provider SDK (openai, groq, …)
 export ANTHROPIC_API_KEY=sk-...  # or any provider's key (see below)
 
 md2x site docs/                  # generates ./site
@@ -95,7 +96,8 @@ md2x site docs/ --deploy vercel  # needs VERCEL_TOKEN
 `"anthropic:claude-sonnet-4-5"`, `"openai:gpt-4o"`, `"groq:llama-3.3-70b"`, … or
 point at any OpenAI-compatible/local endpoint with a `provider: openai-like`
 block (`id` + `base_url` + `api_key_env`; also `pip install openai`). Switching
-models is one config line.
+models is one config line. Install the SDK for your chosen provider (`anthropic`,
+`openai`, `groq`, …); `md2x[ai]` stays provider-neutral.
 
 **Archetypes:** `reading` (default), `presentation`, `flyer`, `product`, `docs`,
 `report`, `custom` (drive it entirely from `site.style_prompt`).

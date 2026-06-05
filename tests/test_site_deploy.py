@@ -22,8 +22,7 @@ def test_collect_files_walks_recursively(tmp_path):
 
 def test_build_payload_shape(tmp_path):
     files = vercel.collect_files(_site(tmp_path))
-    payload = vercel.build_payload("my-site", files, team_id=None,
-                                   production=True)
+    payload = vercel.build_payload("my-site", files, production=True)
     assert payload["name"] == "my-site"
     assert payload["projectSettings"]["framework"] is None
     assert payload["target"] == "production"

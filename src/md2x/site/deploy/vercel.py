@@ -25,8 +25,7 @@ def collect_files(out_dir: Path) -> list[dict]:
     return files
 
 
-def build_payload(name: str, files: list[dict], *, team_id: str | None,
-                  production: bool) -> dict:
+def build_payload(name: str, files: list[dict], *, production: bool) -> dict:
     return {
         "name": name,
         "files": files,
@@ -47,8 +46,7 @@ def deploy_vercel(out_dir: Path, cfg: dict) -> str:
 
     name = dcfg.get("project") or out_dir.resolve().name or "md2x-site"
     files = collect_files(out_dir)
-    payload = build_payload(name, files, team_id=dcfg.get("team_id"),
-                            production=dcfg.get("production", True))
+    payload = build_payload(name, files, production=dcfg.get("production", True))
     params = {"teamId": dcfg["team_id"]} if dcfg.get("team_id") else {}
     headers = {"Authorization": f"Bearer {token}"}
 

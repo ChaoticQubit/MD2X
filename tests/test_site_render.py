@@ -169,3 +169,17 @@ def test_text_fields_are_escaped():
     assert "A &amp; &lt;B&gt;" in h
     assert "x &lt; y &amp; z" in h
     assert "<p>body</p>" in h  # fragment stays raw
+
+
+def test_default_site_plan_uses_configured_title():
+    cfg = _cfg()
+    cfg["site"]["title"] = "My Handbook"
+    plan = render.default_site_plan(_docs(), cfg)
+    assert plan.index_title == "My Handbook"
+
+
+def test_default_site_plan_title_none_falls_back():
+    cfg = _cfg()
+    cfg["site"]["title"] = None
+    plan = render.default_site_plan(_docs(), cfg)
+    assert plan.index_title == "Documentation"

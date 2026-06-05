@@ -4,9 +4,9 @@ so downstream code never sees pydantic. (The home/index page is built
 deterministically by render.py from the architect's SitePlan — there is no
 separate index agent.)
 
-NOTE: verify the agno structured-output API against the installed version. This
-module uses agno v2's `output_schema=` and `response.content` (a typed object).
-If your agno version names these differently, change ONLY this file.
+Verified against agno 2.6.11: Agent accepts output_schema=<PydanticModel> and
+retries=N; agent.run(prompt) returns a RunOutput whose .content is the typed
+object. If you upgrade agno and these move, change ONLY this file.
 """
 from __future__ import annotations
 
