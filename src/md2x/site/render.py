@@ -10,11 +10,13 @@ from __future__ import annotations
 import html
 import re
 import shutil
-import sys
 from pathlib import Path
 
+from ..log import get_logger
 from .archetypes import get_shell
 from .schemas import Doc, NavItem, SitePlan, PageEnhancement
+
+log = get_logger(__name__)
 
 # --- shared base + per-shell CSS (%ACCENT% substituted at write time) -------
 
@@ -121,10 +123,8 @@ _DEFAULT_ACCENT = "#2563eb"
 def _accent(cfg: dict, plan: SitePlan) -> str:
     value = (plan.theme_accent or cfg["site"]["theme"]["accent"] or "").strip()
     if not _SAFE_COLOR.match(value):
-        sys.stderr.write(
-            f"WARN: ignoring unsafe accent color {value!r}; "
-            f"using default {_DEFAULT_ACCENT}.\n"
-        )
+        log.warning("ignoring unsafe accent color %r; using default %s",
+                    value, _DEFAULT_ACCENT)
         return _DEFAULT_ACCENT
     return value
 
@@ -328,6 +328,7 @@ def write_site(out_dir: Path, docs: list[Doc], plan: SitePlan,
                enh: dict[str, PageEnhancement], cfg: dict, *, layout: str) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     shell = _shell_for(cfg)
+    log.info("rendering: shell=%s layout=%s -> %s", shell, layout, out_dir)
 
     if shell == "deck":
         (out_dir / "index.html").write_text(
@@ -349,7 +350,9 @@ def write_site(out_dir: Path, docs: list[Doc], plan: SitePlan,
             page = build_page(doc, plan, enh.get(doc.slug, PageEnhancement()),
                               cfg, assets_inline=False)
             (out_dir / f"{doc.slug}.html").write_text(page, encoding="utf-8")
+            log.debug("wrote %s.html", doc.slug)
         (out_dir / "index.html").write_text(
             build_index(plan, cfg, assets_inline=False), encoding="utf-8")
+        log.info("wrote %d page(s) + index + shared assets", len(docs))
 
     _copy_diagrams(out_dir, docs)

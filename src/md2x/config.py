@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import copy
-import sys
 from pathlib import Path
 from typing import Any
 
+from .log import get_logger
 from .paths import PROJECT_ROOT
+
+log = get_logger(__name__)
 
 
 DEFAULTS: dict[str, Any] = {
@@ -140,17 +142,18 @@ def load_config(explicit: Path | None, md_path: Path) -> dict:
         PROJECT_ROOT / "md2x.yml",
     ]
     for p in candidates:
+        log.debug("config candidate: %s (exists=%s)", p, p.exists() if p else False)
         if p and p.exists():
             try:
                 import yaml
                 data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-                print(f"[md2x] using config {p}")
+                log.info("using config %s", p)
                 return deep_merge(DEFAULTS, data)
             except ImportError:
-                sys.stderr.write(f"WARN: PyYAML missing — skipping {p}\n")
+                log.warning("PyYAML missing — skipping %s", p)
                 break
             except Exception as e:
-                sys.stderr.write(f"WARN: failed to parse {p}: {e}\n")
+                log.warning("failed to parse %s: %s", p, e)
                 break
-    print("[md2x] using built-in defaults (no YAML found)")
+    log.info("no md2x.yaml found; using built-in defaults")
     return deep_merge(DEFAULTS, {})

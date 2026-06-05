@@ -1,3 +1,4 @@
+import logging
 import textwrap
 import argparse
 import md2x.config as config
@@ -53,14 +54,16 @@ def test_load_config_returns_isolated_copy(tmp_path):
     assert config.DEFAULTS["page"]["margin"] == "0.85in"
 
 
-def test_load_config_malformed_yaml_falls_back(tmp_path, capsys):
+def test_load_config_malformed_yaml_falls_back(tmp_path, caplog):
     bad = tmp_path / "bad.yaml"
     bad.write_text("page: [unclosed")
     md = tmp_path / "doc.md"
     md.write_text("# hi")
-    cfg = config.load_config(bad, md)
+    with caplog.at_level(logging.WARNING, logger="md2x"):
+        cfg = config.load_config(bad, md)
     assert cfg["page"]["margin"] == "0.85in"
-    assert "WARN" in capsys.readouterr().err
+    assert any(r.levelno == logging.WARNING and "failed to parse" in r.message
+               for r in caplog.records)
 
 
 def test_defaults_have_format_none():
