@@ -60,6 +60,13 @@ def generate_site(inputs: list[Path], out_dir: Path, cfg: dict, *,
     docs: list[Doc] = [build_doc(p, cfg) for p in md_files]
     log.info("built %d HTML fragment(s)", len(docs))
 
+    # AI site v2: the report archetype uses the editorial "blocks" pipeline
+    # (hero + synthesized summary + KPI strip + findings + verbatim sections),
+    # not the architect/page enhancement path. Other archetypes are unchanged.
+    if cfg["site"]["archetype"] == "report":
+        from .report import generate_report_site
+        return generate_report_site(docs, out_dir, cfg, use_ai=use_ai)
+
     if use_ai:
         if run_architect is None:
             log.error("AI site needs agno — run: pip install md2x[ai] "
