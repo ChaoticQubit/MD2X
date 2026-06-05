@@ -32,8 +32,9 @@ never alters the author's words.
   config references them by name and is safe to commit/share.
 - Configurable **archetype** (presentation / flyer / product / docs / reading /
   report / custom) so the user declares the *kind* of site they want.
-- Configurable **fidelity** (preserve / light-enhance / rewrite); default
-  light-enhance.
+- Configurable **fidelity** (preserve / light-enhance); default light-enhance.
+  The author's words are never altered. (A future `rewrite` mode is explicitly
+  deferred — see Non-Goals.)
 - One-click deploy to Vercel from a token.
 - Core `pip install md2x` stays dependency-light; AI is an opt-in extra.
 
@@ -45,6 +46,8 @@ never alters the author's words.
 - Incremental / cached regeneration.
 - Watch mode / live dev server.
 - Auth-gated or access-controlled sites.
+- A `rewrite` fidelity mode (AI rewords the author's prose). Deferred until a
+  real need appears — the body is always preserved verbatim in v1.
 
 ## CLI Surface
 
@@ -62,7 +65,7 @@ md2x site INPUTS...                  # one or more files and/or directories
   --archetype {reading,presentation,flyer,product,docs,report,custom}
   --layout {auto,multi-page,single-page}
   --style "free-text nudge"
-  --fidelity {preserve,light-enhance,rewrite}
+  --fidelity {preserve,light-enhance}
   --model "provider:model_id"        # CLI override of ai.model
   --no-ai                            # deterministic template, no agno/LLM/network
   --deploy {vercel}
@@ -124,7 +127,7 @@ site:
   archetype: reading        # reading|presentation|flyer|product|docs|report|custom
   style_prompt: ""          # free-text nudge for any archetype;
                             # full brief when archetype: custom
-  fidelity: light-enhance   # preserve | light-enhance | rewrite
+  fidelity: light-enhance   # preserve | light-enhance
   theme:
     accent: "#2563eb"
     dark_mode: true
@@ -192,8 +195,8 @@ Missing required env var → fail fast with a message naming the exact variable.
    - `light-enhance` (default): returns **additive** blocks (TL;DR,
      key-takeaways, related links) injected *around* the verbatim fragment; the
      original body is never modified.
-   - `rewrite`: returns a full HTML body (highest drift risk; opt-in).
-   Uses `ai.page_model or ai.model`.
+   In both modes the author's words are emitted verbatim — no fidelity mode in
+   v1 rewrites the body. Uses `ai.page_model or ai.model`.
 5. **Index agent** — `SitePlan` → the home page. A landing page for
    flyer/product/presentation archetypes; a document hub for
    reading/docs/report.
