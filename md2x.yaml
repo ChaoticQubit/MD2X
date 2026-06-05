@@ -124,3 +124,40 @@ advanced:
 
   # If True, refuse to overwrite an existing PDF; abort with non-zero exit.
   no_clobber: false
+
+# ----------------------------------------------------------------------------
+# AI reading-site (`md2x site`) — requires: pip install md2x[ai]
+# ----------------------------------------------------------------------------
+site:
+  layout: auto              # auto | multi-page | single-page
+  archetype: reading        # reading|presentation|flyer|product|docs|report|custom
+  style_prompt: ""          # free-text nudge; full brief when archetype: custom
+  fidelity: light-enhance   # preserve | light-enhance (your words are never rewritten)
+  theme:
+    accent: "#2563eb"
+    dark_mode: true
+  features: [search, animations, smooth-scroll]
+  recursive: true           # recurse into directory inputs
+
+ai:
+  # Native providers — "provider:model_id" (key from the provider's env var):
+  model: "anthropic:claude-sonnet-4-5"
+  # OR any OpenAI-compatible / local endpoint (also needs: pip install openai):
+  # model:
+  #   provider: openai-like
+  #   id: llama-3.3-70b
+  #   base_url: http://localhost:1234/v1
+  #   api_key_env: LOCAL_LLM_KEY
+  architect_model: null     # optional per-role override
+  page_model: null
+  temperature: 0.4
+  max_tokens: null
+  concurrency: 4
+  retries: 2
+
+deploy:
+  provider: vercel
+  token_env: VERCEL_TOKEN    # token read from this env var; never stored here
+  project: null
+  team_id: null
+  production: true
