@@ -32,6 +32,7 @@ import sys
 from pathlib import Path
 
 from .config import load_config
+from .dotenv import load_default_env
 from .pipeline import build
 from .formats import detect_target
 from .paths import ensure_venv_yaml
@@ -152,6 +153,8 @@ def run_convert(args: argparse.Namespace) -> int:
 
 def main() -> int:
     ensure_venv_yaml()
+    for p in load_default_env():
+        print(f"[md2x] loaded environment from {p}")
     argv = _normalize_argv(sys.argv[1:])
     ap = build_parser()
     args = ap.parse_args(argv)

@@ -106,7 +106,10 @@ emitted verbatim — pandoc renders the body, the AI only builds the design,
 navigation, and additive aids (TL;DR, takeaways, related links).
 
 **Secrets** live in environment variables only; `md2x.yaml` just names them
-(`ai.model` provider keys, `deploy.token_env`). Safe to commit.
+(`ai.model` provider keys, `deploy.token_env`). Safe to commit. md2x also
+auto-loads a `.env` file from the current directory or project root (real
+environment variables take precedence) — copy [`.env.example`](./.env.example)
+to `.env` and fill in your key. `.env` is git-ignored.
 
 ## Configuration
 

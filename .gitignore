@@ -4,6 +4,12 @@
 *._md2x.json
 diagrams/
 **/diagrams/
+site/
+
+# Secrets — never commit. Keys/tokens live here; config only names the env vars.
+.env
+.env.*
+!.env.example
 
 # Local install (created by install.sh; do not commit)
 .venv/
