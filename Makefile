@@ -24,7 +24,8 @@ PY      ?= python3
 VENV_PY := .venv/bin/python
 # Prefer the local venv python (it has pyyaml + agno + provider SDKs) when present,
 # so `make ai-site` works after `pip install md2x[ai]`; fall back to system python.
-RUN     := PYTHONPATH=src $(if $(wildcard $(VENV_PY)),$(VENV_PY),$(PY)) -m md2x
+PYBIN   := $(if $(wildcard $(VENV_PY)),$(VENV_PY),$(PY))
+RUN     := PYTHONPATH=src $(PYBIN) -m md2x
 SAMPLE  := examples/sample.md
 
 IN  ?=
@@ -72,7 +73,7 @@ check:
 	@$(RUN) --check
 
 test:
-	@$(VENV_PY) -m pytest
+	@$(PYBIN) -m pytest
 
 sample: $(SAMPLE)
 	@$(RUN) $(SAMPLE)
