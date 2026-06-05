@@ -86,13 +86,16 @@ DEFAULTS: dict[str, Any] = {
         "recursive": True,
     },
     "ai": {
-        "model": "anthropic:claude-sonnet-4-6",
-        "architect_model": None,
-        "page_model": None,
-        "temperature": 0.4,
-        "max_tokens": None,
-        "concurrency": 4,
-        "retries": 2,
+        # `md2x site` runs two agents: the ARCHITECT (plans the whole site once)
+        # and the PER-PAGE agent (adds TL;DR/takeaways per doc). See md2x.yaml
+        # for the long-form explanation of every key below.
+        "model": "anthropic:claude-sonnet-4-6",  # default model for both agents
+        "architect_model": None,  # override model for the architect (null=model)
+        "page_model": None,       # override model for the per-page agent
+        "temperature": 0.4,       # sampling randomness; lower = steadier output
+        "max_tokens": None,       # cap on tokens per reply (null = provider default)
+        "concurrency": 4,         # parallel per-page agent calls
+        "retries": 2,             # agno retries on invalid structured output
     },
     "deploy": {
         "provider": "vercel",

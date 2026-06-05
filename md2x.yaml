@@ -141,6 +141,14 @@ site:
   recursive: true           # recurse into directory inputs
 
 ai:
+  # `md2x site` drives TWO LLM agents:
+  #   • architect — reads every document's outline ONCE and plans the whole
+  #     site: navigation, page order, grouping, index copy, theme/accent.
+  #   • page      — runs once PER document to add reader aids (TL;DR, key
+  #     takeaways, related-page links). Never rewrites your body text.
+  # `model` below is the default both agents use; the *_model keys can override
+  # the model per agent.
+
   # Native providers — "provider:model_id". md2x[ai] bundles every provider SDK
   # (via agno[models]), so any of these work out of the box; the key is read
   # from the provider's own env var (e.g. ANTHROPIC_API_KEY, OPENAI_API_KEY):
@@ -151,12 +159,28 @@ ai:
   #   id: llama-3.3-70b
   #   base_url: http://localhost:1234/v1
   #   api_key_env: LOCAL_LLM_KEY
-  architect_model: null     # optional per-role override
-  page_model: null
-  temperature: 0.4
-  max_tokens: null
-  concurrency: 4
-  retries: 2
+
+  # Per-agent model overrides. null = use `model` above. Set these to spend a
+  # stronger/cheaper model only where it matters:
+  architect_model: null   # model for the ARCHITECT agent (whole-site planning).
+                          #   A stronger model here buys better structure & nav.
+  page_model: null        # model for the PER-PAGE agent (TL;DR, takeaways).
+                          #   A cheaper/faster model here cuts cost — it runs
+                          #   once for every document.
+
+  temperature: 0.4        # sampling randomness (0.0–1.0+). Lower = steadier,
+                          #   more consistent output; higher = more varied copy.
+                          #   Applied to openai-like endpoints; native
+                          #   "provider:model_id" models use the provider's own
+                          #   default unless they honour this value.
+  max_tokens: null        # hard cap on tokens per LLM reply. null = provider
+                          #   default. Raise it if enhancements get truncated.
+  concurrency: 4          # how many PAGE agents run in parallel (one HTTP call
+                          #   each). Higher = faster on many docs, but mind your
+                          #   provider's rate limits.
+  retries: 2              # times agno retries an agent call whose structured
+                          #   output fails validation before giving up; the
+                          #   pipeline then degrades that page to a plain render.
 
 deploy:
   provider: vercel
