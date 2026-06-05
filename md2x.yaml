@@ -141,10 +141,11 @@ site:
   recursive: true           # recurse into directory inputs
 
 ai:
-  # Native providers — "provider:model_id" (also: pip install <provider-sdk>,
-  # e.g. anthropic/openai/groq; key read from the provider's env var):
+  # Native providers — "provider:model_id". md2x[ai] bundles every provider SDK
+  # (via agno[models]), so any of these work out of the box; the key is read
+  # from the provider's own env var (e.g. ANTHROPIC_API_KEY, OPENAI_API_KEY):
   model: "anthropic:claude-sonnet-4-5"
-  # OR any OpenAI-compatible / local endpoint (also needs: pip install openai):
+  # OR any OpenAI-compatible / local endpoint (openai SDK is already bundled):
   # model:
   #   provider: openai-like
   #   id: llama-3.3-70b

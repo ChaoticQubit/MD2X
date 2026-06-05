@@ -18,11 +18,12 @@ def test_optional_extras_declared():
     extras = _extras()
     if "_text" in extras:
         text = extras["_text"]
-        assert "agno>=2.2" in text
+        # agno[models] pulls every provider SDK so any model works out of the box.
+        assert "agno[models]>=2.2" in text
         assert "httpx>=0.27" in text
         assert "ai = [" in text and "deploy = [" in text and "all = [" in text
         return
-    assert any(d.startswith("agno") for d in extras["ai"])
+    assert any(d.startswith("agno[models]") for d in extras["ai"])
     assert any(d.startswith("httpx") for d in extras["ai"])
     assert any(d.startswith("httpx") for d in extras["deploy"])
     assert "all" in extras

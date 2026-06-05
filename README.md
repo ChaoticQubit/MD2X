@@ -82,8 +82,7 @@ Turn a folder of Markdown into a polished, navigable website — multi-page by
 default, single-page optional — with one-click deploy to Vercel.
 
 ```bash
-pip install 'md2x[ai]'           # adds agno + httpx
-pip install anthropic            # your model's provider SDK (openai, groq, …)
+pip install 'md2x[ai]'           # agno + every provider SDK (works out of the box)
 export ANTHROPIC_API_KEY=sk-...  # or any provider's key (see below)
 
 md2x site docs/                  # generates ./site
@@ -95,9 +94,9 @@ md2x site docs/ --deploy vercel  # needs VERCEL_TOKEN
 **Model & provider agnostic.** Set `ai.model` in `md2x.yaml`:
 `"anthropic:claude-sonnet-4-5"`, `"openai:gpt-4o"`, `"groq:llama-3.3-70b"`, … or
 point at any OpenAI-compatible/local endpoint with a `provider: openai-like`
-block (`id` + `base_url` + `api_key_env`; also `pip install openai`). Switching
-models is one config line. Install the SDK for your chosen provider (`anthropic`,
-`openai`, `groq`, …); `md2x[ai]` stays provider-neutral.
+block (`id` + `base_url` + `api_key_env`). Switching models is one config line —
+`md2x[ai]` bundles the provider SDKs (via `agno[models]`), so any of them works
+with no extra installs; just set the model and its API-key env var.
 
 **Archetypes:** `reading` (default), `presentation`, `flyer`, `product`, `docs`,
 `report`, `custom` (drive it entirely from `site.style_prompt`).

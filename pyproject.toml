@@ -24,7 +24,7 @@ dependencies = ["pyyaml>=6"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
-ai = ["agno>=2.2", "httpx>=0.27"]
+ai = ["agno[models]>=2.2", "httpx>=0.27"]
 deploy = ["httpx>=0.27"]
 all = ["md2x[ai]", "md2x[deploy]"]
 
