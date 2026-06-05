@@ -3,6 +3,7 @@ import stat
 from pathlib import Path
 import pytest
 import md2x.pipeline as pipeline
+import md2x.renderers as renderers
 from md2x.config import DEFAULTS, deep_merge
 
 
@@ -46,14 +47,14 @@ MD = "# Title\n\n```mermaid\nflowchart TD\nA[Start]-->B[End]\n```\n\nafter\n"
 def test_build_embeds_figure_and_caption(monkeypatch, tmp_path):
     """
     Verifies that building a Markdown document with a Mermaid block embeds the rendered diagram as an image with a caption in the rewritten Markdown and produces a PDF.
-    
+
     The test uses a fake renderer that writes a PNG to the expected path and returns a successful renderer name. It asserts the build exits successfully, the output PDF begins with a PDF header, and the intermediate rewritten Markdown contains the embedded image link and a corresponding figure caption.
     """
     _patch_bins(monkeypatch, tmp_path)
     def fake_render(src, png, cfg, mmdc_bin, dot_bin):
         Path(png).write_bytes(b"\x89PNG")
         return True, "dot"
-    monkeypatch.setattr(pipeline, "render_block", fake_render)
+    monkeypatch.setattr(renderers, "render_block", fake_render)
     md = _make_md(tmp_path, MD)
     cfg = deep_merge(DEFAULTS, {"advanced": {"keep_intermediate": True}})
     rc = pipeline.build(md, tmp_path / "out.pdf", cfg)
@@ -66,7 +67,7 @@ def test_build_embeds_figure_and_caption(monkeypatch, tmp_path):
 
 def test_on_failure_keep_source(monkeypatch, tmp_path):
     _patch_bins(monkeypatch, tmp_path)
-    monkeypatch.setattr(pipeline, "render_block", lambda *a: (False, "none"))
+    monkeypatch.setattr(renderers, "render_block", lambda *a: (False, "none"))
     md = _make_md(tmp_path, MD)
     cfg = deep_merge(DEFAULTS, {"advanced": {"keep_intermediate": True}})
     pipeline.build(md, tmp_path / "out.pdf", cfg)
@@ -78,11 +79,11 @@ def test_on_failure_keep_source(monkeypatch, tmp_path):
 def test_on_failure_omit(monkeypatch, tmp_path):
     """
     Verifies that when rendering fails and `mermaid.on_failure` is set to "omit", the Mermaid source block is removed from the rewritten Markdown.
-    
-    This test patches binaries and forces `pipeline.render_block` to fail, builds the document with `keep_intermediate` enabled, and asserts that the intermediate rewritten file does not contain the original Mermaid source (`flowchart TD`).
+
+    This test patches binaries and forces `renderers.render_block` to fail, builds the document with `keep_intermediate` enabled, and asserts that the intermediate rewritten file does not contain the original Mermaid source (`flowchart TD`).
     """
     _patch_bins(monkeypatch, tmp_path)
-    monkeypatch.setattr(pipeline, "render_block", lambda *a: (False, "none"))
+    monkeypatch.setattr(renderers, "render_block", lambda *a: (False, "none"))
     md = _make_md(tmp_path, MD)
     cfg = deep_merge(DEFAULTS, {"mermaid": {"on_failure": "omit"},
                                 "advanced": {"keep_intermediate": True}})
@@ -93,7 +94,7 @@ def test_on_failure_omit(monkeypatch, tmp_path):
 
 def test_on_failure_error_exits(monkeypatch, tmp_path):
     _patch_bins(monkeypatch, tmp_path)
-    monkeypatch.setattr(pipeline, "render_block", lambda *a: (False, "none"))
+    monkeypatch.setattr(renderers, "render_block", lambda *a: (False, "none"))
     md = _make_md(tmp_path, MD)
     cfg = deep_merge(DEFAULTS, {"mermaid": {"on_failure": "error"}})
     with pytest.raises(SystemExit):
@@ -105,7 +106,7 @@ def test_emit_manifest(monkeypatch, tmp_path):
     def fake_render(src, png, cfg, mmdc_bin, dot_bin):
         Path(png).write_bytes(b"\x89PNG")
         return True, "dot"
-    monkeypatch.setattr(pipeline, "render_block", fake_render)
+    monkeypatch.setattr(renderers, "render_block", fake_render)
     md = _make_md(tmp_path, MD)
     cfg = deep_merge(DEFAULTS, {"advanced": {"emit_manifest": True}})
     pipeline.build(md, tmp_path / "out.pdf", cfg)
@@ -116,7 +117,6 @@ def test_emit_manifest(monkeypatch, tmp_path):
 
 def test_no_clobber_refuses(monkeypatch, tmp_path):
     _patch_bins(monkeypatch, tmp_path)
-    monkeypatch.setattr(pipeline, "render_block", lambda *a: (True, "dot"))
     out = tmp_path / "out.pdf"
     out.write_text("existing")
     md = _make_md(tmp_path, MD)
@@ -137,14 +137,14 @@ def test_missing_pandoc_exits(monkeypatch, tmp_path):
 def test_keep_intermediate_false_deletes(monkeypatch, tmp_path):
     """
     Verifies that intermediate rewritten Markdown is removed when intermediate retention is disabled.
-    
+
     Invokes the build pipeline with a stubbed successful renderer and default configuration (keep_intermediate disabled), then asserts that the intermediate file `doc._md2x.md` does not exist after the build.
     """
     _patch_bins(monkeypatch, tmp_path)
     def fake_render(src, png, cfg, mmdc_bin, dot_bin):
         Path(png).write_bytes(b"\x89PNG")
         return True, "dot"
-    monkeypatch.setattr(pipeline, "render_block", fake_render)
+    monkeypatch.setattr(renderers, "render_block", fake_render)
     md = _make_md(tmp_path, MD)
     pipeline.build(md, tmp_path / "out.pdf", deep_merge(DEFAULTS, {}))
     assert not (tmp_path / "doc._md2x.md").exists()
@@ -196,20 +196,20 @@ def test_build_docx_does_not_require_xelatex(monkeypatch, tmp_path):
     def fake_render(src, png, cfg, mmdc_bin, dot_bin):
         """
         Write a minimal PNG signature to the given output path and indicate a successful render with the renderer name.
-        
+
         Parameters:
             src (str): Original source content for the block (unused by this fake renderer).
             png (str or Path): Path where the PNG output will be written.
             cfg (Mapping): Configuration used for rendering (unused by this fake renderer).
             mmdc_bin (str): Path or name of the mermaid CLI binary (unused by this fake renderer).
             dot_bin (str): Path or name of the Graphviz `dot` binary (unused by this fake renderer).
-        
+
         Returns:
             tuple: (ok, renderer) where `ok` is `True` indicating success, and `renderer` is the string `"dot"`.
         """
         Path(png).write_bytes(b"\x89PNG")
         return True, "dot"
-    monkeypatch.setattr(pipeline, "render_block", fake_render)
+    monkeypatch.setattr(renderers, "render_block", fake_render)
 
     md = _make_md(tmp_path, MD)
     cfg = deep_merge(DEFAULTS, {})

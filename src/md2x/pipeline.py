@@ -9,8 +9,7 @@ import sys
 from pathlib import Path
 
 from .binaries import resolve_binary
-from .mermaid import MERMAID_RE, extract_caption
-from .renderers import render_block
+from .renderers import render_into_markdown, MermaidRenderError
 from .pandoc import build_cmd
 from .formats import detect_target
 
@@ -77,8 +76,6 @@ def build(md_path: Path, out_path: Path, cfg: dict) -> int:
     out_path = out_path.resolve()
     target = detect_target(out_path, cfg["output"].get("format"))
     work_dir = md_path.parent
-    diag_dir = work_dir / "diagrams"
-    diag_dir.mkdir(exist_ok=True)
 
     if cfg["advanced"].get("no_clobber") and out_path.exists():
         sys.exit(f"refusing to overwrite existing file (no_clobber): {out_path}")
@@ -105,52 +102,24 @@ def build(md_path: Path, out_path: Path, cfg: dict) -> int:
     print(f"[md2x] dot:     {dot_bin or '(none)'}")
 
     md = md_path.read_text(encoding="utf-8")
-    blocks = list(MERMAID_RE.finditer(md))
-    print(f"[md2x] found {len(blocks)} mermaid blocks in {md_path.name}")
+    try:
+        rewritten, manifest = render_into_markdown(
+            md, work_dir, cfg, mmdc_bin, dot_bin
+        )
+    except MermaidRenderError as e:
+        sys.exit(f"ERROR: {e}.")
 
-    chunks: list[str] = []
-    last_end = 0
-    manifest: list[dict] = []
-
-    for idx, m in enumerate(blocks, 1):
-        chunks.append(md[last_end:m.start()])
-        src = m.group(1)
-        png = diag_dir / f"mermaid_{idx:02d}.png"
-        ok, renderer = render_block(src, png, cfg, mmdc_bin, dot_bin)
-        caption = extract_caption(src, f"Diagram {idx}")
-        manifest.append({
-            "index": idx, "renderer": renderer, "ok": ok,
-            "caption": caption, "png": str(png.relative_to(work_dir)),
-        })
-
-        if ok:
-            rel = png.relative_to(work_dir).as_posix()
-            chunks.append(
-                f"\n![{caption}]({rel}){{width={cfg['images']['width']}}}\n"
-            )
-            if cfg["images"]["show_captions"]:
-                prefix = cfg["images"]["caption_prefix"]
-                if prefix:
-                    chunks.append(f"\n*{prefix} {idx}: {caption}.*\n")
-                else:
-                    chunks.append(f"\n*{caption}.*\n")
-            print(f"  [{idx:02d}] {renderer} → {png.name}")
+    print(f"[md2x] found {len(manifest)} mermaid blocks in {md_path.name}")
+    policy = cfg["mermaid"]["on_failure"]
+    for entry in manifest:
+        if entry["ok"]:
+            print(f"  [{entry['index']:02d}] {entry['renderer']} "
+                  f"→ {Path(entry['png']).name}")
+        elif policy == "omit":
+            print(f"  [{entry['index']:02d}] OMITTED (no renderer succeeded)")
         else:
-            policy = cfg["mermaid"]["on_failure"]
-            if policy == "error":
-                sys.exit(f"ERROR: failed to render mermaid block {idx}.")
-            elif policy == "omit":
-                print(f"  [{idx:02d}] OMITTED (no renderer succeeded)")
-            else:
-                chunks.append(
-                    f"\n*[Diagram {idx} — Mermaid source preserved; "
-                    f"renderer unavailable]*\n\n```\n{src}\n```\n"
-                )
-                print(f"  [{idx:02d}] WARN: kept source; no renderer succeeded")
-        last_end = m.end()
-
-    chunks.append(md[last_end:])
-    rewritten = "".join(chunks)
+            print(f"  [{entry['index']:02d}] WARN: kept source; "
+                  f"no renderer succeeded")
 
     tmp_md = work_dir / (md_path.stem + "._md2x.md")
     tmp_md.write_text(rewritten, encoding="utf-8")
