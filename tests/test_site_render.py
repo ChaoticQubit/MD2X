@@ -48,6 +48,23 @@ def test_light_enhance_blocks_are_additive():
     assert "one" in html and "two" in html
 
 
+def test_related_drops_unknown_slugs():
+    cfg = _cfg()
+    plan = render.default_site_plan(_docs(), cfg)  # real slugs: intro, guide
+    enh = PageEnhancement(related=["guide", "using-quark-engine"])
+    html = render.build_page(_docs()[0], plan, enh, cfg, assets_inline=True)
+    assert 'href="guide.html"' in html               # real page linked
+    assert "using-quark-engine" not in html          # invented slug dropped
+
+
+def test_related_all_unknown_emits_no_block():
+    cfg = _cfg()
+    plan = render.default_site_plan(_docs(), cfg)
+    enh = PageEnhancement(related=["ghost-a", "ghost-b"])
+    html = render.build_page(_docs()[0], plan, enh, cfg, assets_inline=True)
+    assert "Related" not in html                      # empty Related suppressed
+
+
 def test_write_site_multipage_emits_files(tmp_path):
     cfg = _cfg()  # reading -> sidebar
     docs = _docs()

@@ -171,13 +171,18 @@ def _enhancement_html(enh: PageEnhancement, plan: SitePlan,
         blocks.append(f"<strong>Key takeaways</strong><ul>{items}</ul>")
     if enh.related:
         title_by = {n.slug: n.title for n in plan.nav}
+        # Only link slugs that map to a real page. The LLM sometimes returns an
+        # invented slug (e.g. derived from a title), which would otherwise be
+        # rendered as a dead <slug>.html link.
         links = []
         for slug in enh.related:
-            title = title_by.get(slug, slug)
+            if slug not in title_by:
+                continue
             href = _href(slug, single_page)
-            links.append(f'<a href="{href}">{html.escape(title)}</a>')
-        blocks.append('<strong>Related</strong> <span class="related">'
-                      + " · ".join(links) + "</span>")
+            links.append(f'<a href="{href}">{html.escape(title_by[slug])}</a>')
+        if links:
+            blocks.append('<strong>Related</strong> <span class="related">'
+                          + " · ".join(links) + "</span>")
     if blocks:
         out.append('<div class="takeaways">' + "".join(blocks) + "</div>")
     return "".join(out)
