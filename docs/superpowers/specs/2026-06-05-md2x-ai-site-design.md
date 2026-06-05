@@ -85,12 +85,12 @@ src/md2x/site/
   cli.py         # add_site_subparser(ap), run_site(args) -> int
   config.py      # SITE/AI/DEPLOY default blocks, merged into config.DEFAULTS
   models.py      # build_model(ai_cfg, role) -> agno model (str | OpenAILike)
-  agents.py      # architect / page / index agent factories + schemas
+  agents.py      # architect + page agent factories + schemas
   content.py     # md -> faithful HTML fragment (reuses pandoc + mermaid)
-  archetypes.py  # preset registry: design contract + agent instructions
+  archetypes.py  # preset registry: shell choice + agent instructions
   pipeline.py    # generate_site(inputs, out_dir, cfg) -> int  (orchestrator)
-  render.py      # assemble shell + fragment + enhancements -> write files
-  assets/        # bundled CSS/JS shells per archetype (local, no external CDN)
+  render.py      # SHELLS registry (sidebar/deck/landing CSS+JS) + assemble
+                 #   shell + fragment + enhancements -> files (local, no CDN)
   deploy/
     __init__.py  # dispatch by provider
     vercel.py    # deploy_vercel(out_dir, cfg) -> url
@@ -99,14 +99,21 @@ src/md2x/site/
 ### Targeted refactor (serves this feature)
 
 The Mermaid-render loop currently inlined in `pipeline.build` (roughly lines
-107–153) is extracted into a reusable function:
+107–153) is extracted into a reusable function in `renderers.py` (it needs
+`render_block`, and `renderers.py` already imports `mermaid.py` — putting the
+helper in `mermaid.py` would create a circular import):
 
 ```python
-# mermaid.py
-def render_into_markdown(md: str, work_dir: Path, cfg: dict, bins: dict)
+# renderers.py
+def render_into_markdown(md: str, work_dir: Path, cfg: dict,
+                         mmdc_bin: str | None, dot_bin: str | None,
+                         diag_subdir: str = "")
     -> tuple[str, list[dict]]:
     """Render every ```mermaid``` block to an image and return the rewritten
-    Markdown plus a manifest. Pure function of its inputs; no I/O beyond writing
+    Markdown plus a manifest. Applies cfg['mermaid']['on_failure'] policy.
+    diag_subdir namespaces output under diagrams/<diag_subdir>/ so the site
+    generator can keep diagrams from different source docs from colliding
+    (default "" preserves the convert behavior exactly). No I/O beyond writing
     the diagram PNGs."""
 ```
 
@@ -178,33 +185,36 @@ Missing required env var → fail fast with a message naming the exact variable.
 1. **Resolve inputs** → an ordered list of Markdown files (files kept in
    argument order; directory contents sorted; deduplicated).
 2. **Per document** — `content.py`:
-   - `mermaid.render_into_markdown(...)` renders diagrams to images (reuses the
+   - `renderers.render_into_markdown(...)` renders diagrams to images (reuses the
      existing renderers; static PNG/SVG, guaranteed to match the PDF output).
    - pandoc `-t html` (no `--standalone`) produces a **faithful HTML fragment**.
    - Extract metadata: title (frontmatter or first H1), heading outline, word
      count. Produce a `Doc{path, title, outline, fragment_html, assets}`.
 3. **Architect agent** — input: all docs' titles + outlines + `archetype` +
    `style_prompt` + resolved `layout`. Output (structured schema)
-   `SitePlan{nav, groups, order, index_spec, theme_tokens}`. Uses
-   `ai.architect_model or ai.model`.
+   `SitePlan{nav, order, index_title, index_intro, theme_accent}`. The architect
+   also produces the home-page content (archetype-aware `index_title` /
+   `index_intro`) — there is no separate index agent; `render.py` builds the home
+   page deterministically from the `SitePlan` using the archetype shell (a
+   landing-style hero for flyer/product/presentation, a card/hub for
+   reading/docs/report). Uses `ai.architect_model or ai.model`.
 4. **Page agents** — run in parallel bounded by `ai.concurrency`. Each receives
-   one `Doc` + the `SitePlan` + the archetype's design contract, and behaves per
+   one `Doc` + the `SitePlan` + the archetype's instructions, and behaves per
    `fidelity`:
-   - `preserve`: returns only nav/design metadata; the fragment is emitted
-     verbatim.
+   - `preserve`: returns nothing; the fragment is emitted verbatim.
    - `light-enhance` (default): returns **additive** blocks (TL;DR,
      key-takeaways, related links) injected *around* the verbatim fragment; the
      original body is never modified.
    In both modes the author's words are emitted verbatim — no fidelity mode in
    v1 rewrites the body. Uses `ai.page_model or ai.model`.
-5. **Index agent** — `SitePlan` → the home page. A landing page for
-   flyer/product/presentation archetypes; a document hub for
-   reading/docs/report.
-6. **Assemble & write** — `render.py` composes archetype shell + fragment +
-   enhancements:
-   - multi-page → shared local `assets/` directory (CSS/JS once, referenced
-     relatively).
-   - single-page → all CSS/JS inlined into the one file.
+5. **Assemble & write** — `render.py` selects the archetype **shell**
+   (`sidebar` | `deck` | `landing`) and composes shell + fragment +
+   enhancements + the architect's home page:
+   - multi-page → one HTML per doc + `index.html`, with shared local
+     `assets/site.css` + `assets/site.js` (the shell's CSS/JS, written once and
+     referenced relatively).
+   - single-page → all sections + shell CSS/JS inlined into one `index.html`.
+   - Diagrams are copied into `out_dir/diagrams/<slug>/` in **both** layouts.
    - Either way: **no external CDN**, so the output is a self-contained static
      site that deploys anywhere.
 
@@ -227,8 +237,11 @@ def build_model(ai_cfg: dict, role: str = "model"):
     raise ValueError(f"unknown ai model provider: {provider!r}")
 ```
 
-Agents are constructed with `Agent(model=build_model(cfg["ai"], role), ...)`,
-plus `temperature`, `max_tokens`, `retries` from config. Switching from
+Agents are constructed with `Agent(model=build_model(cfg["ai"], role),
+instructions=..., output_schema=..., retries=...)`. `temperature` and
+`max_tokens` are applied to the model object when one is built (the
+`OpenAILike` path); for native `"provider:model_id"` string models, agno uses
+the provider defaults (a string carries no parameters). Switching from
 Anthropic to a local Llama is a config edit only.
 
 ## Archetypes
@@ -237,13 +250,18 @@ Anthropic to a local Llama is a config edit only.
 
 ```python
 {
-  "design_contract": ...,        # CSS/JS shell choice + layout rules
-  "architect_instructions": ..., # how to plan IA for this style
-  "page_instructions": ...,      # how to render a page in this style
+  "shell": "sidebar" | "deck" | "landing",  # which render.py SHELLS entry
+  "architect_instructions": ...,            # how to plan IA for this style
+  "page_instructions": ...,                 # how to render a page in this style
   "default_layout": "multi-page" | "single-page",
-  "default_fidelity": "light-enhance",
 }
 ```
+
+The `shell` value picks a concrete CSS/JS shell from `render.py`'s `SHELLS`
+registry so archetypes render visibly differently: `sidebar` (reading/docs/
+report — TOC sidebar + main column), `deck` (presentation — full-screen slides,
+keyboard nav), `landing` (flyer/product — hero + stacked sections, no sidebar).
+`fidelity` is global (`site.fidelity`), not per-archetype.
 
 | Archetype      | Generates                                                              | default_layout |
 |----------------|-----------------------------------------------------------------------|----------------|
