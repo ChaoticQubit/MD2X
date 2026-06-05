@@ -35,6 +35,7 @@ from .config import load_config
 from .pipeline import build
 from .formats import detect_target
 from .paths import ensure_venv_yaml
+from .site.cli import add_site_subparser
 
 
 def apply_cli_overrides(cfg: dict, args: argparse.Namespace) -> dict:
@@ -71,61 +72,87 @@ def apply_cli_overrides(cfg: dict, args: argparse.Namespace) -> dict:
     return cfg
 
 
-def main() -> int:
+KNOWN_SUBCMDS = {"convert", "site"}
+
+
+def _normalize_argv(argv: list[str]) -> list[str]:
+    """Back-compat: route bare invocations to the `convert` subcommand.
+
+    `md2x doc.md`, `md2x --check`, `md2x doc.md --to docx` all keep working.
+    Top-level help (`-h`/`--help`) and an empty argv are left untouched so the
+    top parser can show the subcommand list.
+
+    Note: a file literally named `site` or `convert` must be run as
+    `md2x convert site` to avoid being read as a subcommand.
     """
-    CLI entry point that parses command-line arguments and runs the build pipeline to convert a Markdown document (with Mermaid diagrams) to the requested output format.
-    
-    Parses supported options (input, output, config, format selection, layout overrides, theme, keep-intermediate, and --check). In `--check` mode prints resolved binary paths and exits. Otherwise validates the input path, loads and updates configuration with CLI overrides, determines the target format and output path, and invokes the conversion pipeline.
-    
-    Returns:
-        int: Exit code — `0` for a successful `--check`, otherwise the integer returned by `build(...)` representing the conversion result.
-    """
-    # Bootstrap PyYAML from the local .venv before any config loading.
-    ensure_venv_yaml()
+    if not argv:
+        return argv
+    if argv[0] in ("-h", "--help"):
+        return argv
+    if argv[0] in KNOWN_SUBCMDS:
+        return argv
+    return ["convert", *argv]
+
+
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
-        description="Convert Markdown (with Mermaid diagrams) to "
-                    "PDF, DOCX, HTML, EPUB, or LaTeX."
+        prog="md2x",
+        description="Convert Markdown to documents, or generate an AI website.",
     )
-    ap.add_argument("input", nargs="?", type=Path, default=None,
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    cv = sub.add_parser("convert",
+                        help="Convert one Markdown file to PDF/DOCX/HTML/EPUB/LaTeX")
+    cv.add_argument("input", nargs="?", type=Path, default=None,
                     help="Path to source .md")
-    ap.add_argument("-o", "--output", type=Path, default=None,
-                    help="Output file path; format inferred from its extension "
-                         "(default: alongside input, as PDF)")
-    ap.add_argument("-c", "--config", type=Path, default=None,
+    cv.add_argument("-o", "--output", type=Path, default=None,
+                    help="Output file path; format inferred from its extension")
+    cv.add_argument("-c", "--config", type=Path, default=None,
                     help="Explicit YAML config file")
-    ap.add_argument("-t", "--to", default=None,
+    cv.add_argument("-t", "--to", default=None,
                     choices=["pdf", "docx", "html", "epub", "latex"],
-                    help="Output format (default: infer from -o extension, else pdf)")
-    ap.add_argument("--no-toc", action="store_true", help="Disable ToC")
-    ap.add_argument("--toc-depth", type=int, default=None,
+                    help="Output format")
+    cv.add_argument("--no-toc", action="store_true", help="Disable ToC")
+    cv.add_argument("--toc-depth", type=int, default=None,
                     help="Heading depth for ToC")
-    ap.add_argument("--margin", default=None, help="Page margin (e.g. 0.85in)")
-    ap.add_argument("--fontsize", default=None, help="Body font size (e.g. 10.5pt)")
-    ap.add_argument("--theme", default=None,
+    cv.add_argument("--margin", default=None, help="Page margin (e.g. 0.85in)")
+    cv.add_argument("--fontsize", default=None, help="Body font size (e.g. 10.5pt)")
+    cv.add_argument("--theme", default=None,
                     choices=["default", "forest", "dark", "neutral"],
                     help="Mermaid theme")
-    ap.add_argument("--keep-intermediate", action="store_true",
+    cv.add_argument("--keep-intermediate", action="store_true",
                     help="Don't delete the intermediate .md")
-    ap.add_argument("--check", action="store_true",
+    cv.add_argument("--check", action="store_true",
                     help="Print resolved binary paths and exit")
-    args = ap.parse_args()
+    cv.set_defaults(func=run_convert)
 
+    add_site_subparser(sub)
+    return ap
+
+
+def run_convert(args: argparse.Namespace) -> int:
     if args.check:
         from .binaries import resolve_binary
         for n in ("pandoc", "xelatex", "mmdc", "dot"):
             print(f"  {n:8s} {resolve_binary(n) or 'MISSING'}")
         return 0
-
     if args.input is None:
-        ap.error("input is required (or use --check)")
+        sys.stderr.write("md2x convert: error: input is required (or use --check)\n")
+        return 2
     if not args.input.exists():
         sys.exit(f"input not found: {args.input}")
 
     cfg = load_config(args.config, args.input)
     cfg = apply_cli_overrides(cfg, args)
-
-    # Resolve format once; write it back so build() is authoritative.
     target = detect_target(args.output, args.to or cfg["output"].get("format"))
     cfg["output"]["format"] = target.name
     out = args.output or args.input.with_suffix(target.suffix)
     return build(args.input, out, cfg)
+
+
+def main() -> int:
+    ensure_venv_yaml()
+    argv = _normalize_argv(sys.argv[1:])
+    ap = build_parser()
+    args = ap.parse_args(argv)
+    return args.func(args)
