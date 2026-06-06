@@ -64,6 +64,9 @@ class SitePlan:
     index_intro: str = ""
     theme_accent: str = ""                 # "" = use config theme.accent
     design: DesignSystem = field(default_factory=DesignSystem)
+    # Architect per-page selection (PR-F): slug -> chosen artifact ids / render mode.
+    page_artifacts: dict[str, list[str]] = field(default_factory=dict)
+    page_modes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

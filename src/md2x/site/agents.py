@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from agno.agent import Agent
 
 from ..log import get_logger
-from .archetypes import get_archetype, resolve_layout
+from .archetypes import get_archetype, get_suggested_artifacts, resolve_layout
 from .models import build_model
 from .schemas import Doc, NavItem, SitePlan, PageEnhancement, DesignSystem
 from .skill import load_skill
@@ -37,6 +37,11 @@ class _NavItemModel(BaseModel):
     title: str
     slug: str
     group: str = ""
+    # Architect per-page selection (PR-F).
+    render_mode: str = Field(default="", description="blocks|hybrid|full override "
+                             "for this page, or empty to use the site default.")
+    artifacts: list[str] = Field(default_factory=list,
+                                 description="Artifact pattern ids to use on this page.")
 
 
 class _DesignSystemModel(BaseModel):
@@ -78,6 +83,8 @@ def _to_site_plan(pm: _SitePlanModel) -> SitePlan:
         border=d.border, radius=d.radius, font_sans=d.font_sans,
         font_mono=d.font_mono, density=d.density,
     )
+    page_artifacts = {n.slug: list(n.artifacts) for n in pm.nav if n.artifacts}
+    page_modes = {n.slug: n.render_mode.strip() for n in pm.nav if n.render_mode.strip()}
     return SitePlan(
         nav=[NavItem(title=n.title, slug=n.slug, group=n.group) for n in pm.nav],
         order=list(pm.order),
@@ -85,6 +92,8 @@ def _to_site_plan(pm: _SitePlanModel) -> SitePlan:
         index_intro=pm.index_intro,
         theme_accent=pm.theme_accent,
         design=design,
+        page_artifacts=page_artifacts,
+        page_modes=page_modes,
     )
 
 
@@ -134,6 +143,9 @@ def run_architect(docs: list[Doc], cfg: dict) -> SitePlan:
         + f"\n\nTarget layout: {layout}."
         + "\n\nAlso emit a DesignSystem (palette + radius + density) that fits the "
           "content and style brief; it becomes the site's --ds-* design tokens."
+        + "\n\nFor each page you may set render_mode (blocks|hybrid|full) and pick "
+          "the artifact patterns that fit it, drawn from this archetype's suggested "
+          f"set: {get_suggested_artifacts(site['archetype']) or 'none'}."
         + "\n\nUse exactly the given slugs. Output a complete SitePlan."
     )
     agent = _make_agent(cfg, "architect", instr, _SitePlanModel)
