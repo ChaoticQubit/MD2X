@@ -95,10 +95,12 @@ def generate_site(inputs: list[Path], out_dir: Path, cfg: dict, *,
         plan = default_site_plan(docs, cfg)
         enh = {d.slug: PageEnhancement() for d in docs}
 
-    if cfg["site"]["render_mode"] == "blocks":
+    if cfg["site"]["render_mode"] in ("blocks", "hybrid"):
+        # hybrid = the same typed-block pages; the synthesize agent may also emit
+        # sandboxed `artifact` blocks (mounted as CSP-locked iframes by the renderer).
         from .blocks_render import write_blocks_site
         write_blocks_site(out_dir, docs, plan, enh, cfg)
-    else:  # hybrid/full still use the existing shells until PR-D/PR-E swap them in
+    else:  # full still uses the existing shells until PR-E swaps it in
         write_site(out_dir, docs, plan, enh, cfg, layout=layout)
     log.info("wrote site to %s", out_dir)
     return 0
