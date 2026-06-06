@@ -72,7 +72,8 @@ def _build_generate_fn():
 
 def main() -> None:
     if not os.getenv("MD2X_RUN_EVALS"):
-        print("Set MD2X_RUN_EVALS=1 to run (uses tokens).")
+        print("Set MD2X_RUN_EVALS=1 to run "
+              "(no model/tokens; measures the deterministic build+render path).")
         return
 
     from agno.eval.performance import PerformanceEval

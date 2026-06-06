@@ -52,4 +52,4 @@
 ## Self-Review
 - Spec coverage: defaults flipped to hybrid+synthesize after the eval gate ✓ (T2); README + commented config docs ✓ (T4, via example file to respect the never-touch-md2x.yaml constraint); CLI exposure of the new axes ✓ (T3). The use_ai correctness fix (T1) is the safe precondition for the synthesize default.
 - Constraint: `md2x.yaml` (user WIP) is never staged; config docs ship as `md2x.example.yaml` + README.
-- Backward-compat: `--no-ai` stays fully deterministic after the flip (T1); `preserve`/`light-enhance`/`blocks` remain available as opt-downs.
+- Backward-compat: `--no-ai` stays fully deterministic after the flip (T1); `preserve`/`light-enhance` remain available as fidelity opt-downs and `blocks`/`full` as render-mode opt-downs.

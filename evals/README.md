@@ -10,7 +10,7 @@ does that.
 
 | Tier | What it checks | Cost | Where it lives | Runs in CI? |
 |------|----------------|------|----------------|-------------|
-| **Tier-1 — deterministic** | Structural invariants of the render layer: blocks → DOM mapping, escaping/sanitization, self-contained output, no network refs. Pure, fast, no model. | Free | `tests/` (and would live under `tests/evals/`) | **Yes** |
+| **Tier-1 — deterministic** | Structural invariants of the render layer: blocks → DOM mapping, escaping/sanitization, self-contained output, no network refs. Pure, fast, no model. | Free | `tests/evals/` | **Yes** |
 | **Tier-2 — quality (LLM-as-judge)** | Whether a generated page is a genuine living site, scored against the Thariq rubric by an LLM judge. | **Tokens** | **here** (`evals/`) | **No — opt-in** |
 | **Tier-3 — performance** | Runtime + peak memory of the deterministic build+render path (the floor every run pays). | Free (no model) | **here** (`evals/`) | **No — opt-in** |
 
