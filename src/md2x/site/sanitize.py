@@ -18,7 +18,11 @@ import re
 
 _SCRIPT = re.compile(r"(?is)<script\b.*?</script\s*>")
 _DANGER_TAGS = re.compile(r"(?is)</?(?:iframe|object|embed|link|meta|base|form)\b[^>]*>")
-_ON_ATTR = re.compile(r"(?is)\son\w+\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+)")
+# Capture the attribute boundary (whitespace, quote, or slash) so handlers are
+# caught even with no leading space — e.g. `<div id="x"onclick=...>` — and the
+# boundary char is restored on replacement.
+_ON_ATTR = re.compile(
+    r"(?is)([\s\"'/])(on\w+\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+))")
 _JS_URL = re.compile(r"(?i)(href|src|xlink:href)\s*=\s*([\"'])\s*javascript:[^\"']*\2")
 _EXT_URL = re.compile(r"(?i)(href|src|xlink:href)\s*=\s*([\"'])\s*https?:[^\"']*\2")
 _FOREIGN = re.compile(r"(?is)<foreignObject\b.*?</foreignObject\s*>")
@@ -46,7 +50,7 @@ def sanitize_inline(markup: str) -> str:
     """Block escape-hatch / prose: strip scripts, handlers, dangerous tags, URLs."""
     s = _SCRIPT.sub("", markup or "")
     s = _DANGER_TAGS.sub("", s)
-    s = _ON_ATTR.sub("", s)
+    s = _ON_ATTR.sub(r"\1", s)
     s = _JS_URL.sub(r"\1=\2#\2", s)
     s = _EXT_URL.sub(r"\1=\2#\2", s)
     return s
@@ -56,7 +60,7 @@ def sanitize_svg(svg: str) -> str:
     """Inline SVG: keep drawing markup; drop scripts, foreignObject, handlers, refs."""
     s = _SCRIPT.sub("", svg or "")
     s = _FOREIGN.sub("", s)
-    s = _ON_ATTR.sub("", s)
+    s = _ON_ATTR.sub(r"\1", s)
     s = _JS_URL.sub(r"\1=\2#\2", s)
     s = _EXT_URL.sub(r"\1=\2#\2", s)
     return s

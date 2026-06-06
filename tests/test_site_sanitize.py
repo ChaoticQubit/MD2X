@@ -11,6 +11,18 @@ def test_sanitize_svg_keeps_shapes_drops_script():
     assert "<rect" in s and "<script" not in s
 
 
+def test_sanitize_inline_strips_handler_without_leading_space():
+    # handler glued to the previous attribute's closing quote (no space)
+    s = S.sanitize_inline('<div id="x"onclick="evil()">hi</div>')
+    assert "onclick" not in s and "hi" in s
+    assert 'id="x"' in s                         # boundary quote preserved
+
+
+def test_sanitize_svg_strips_handler_after_slash():
+    s = S.sanitize_svg('<svg/onload="evil()"><rect/></svg>')
+    assert "onload" not in s and "<rect" in s
+
+
 def test_sanitize_artifact_html_keeps_inline_drops_external():
     s = S.sanitize_artifact_html(
         '<script src="https://e/x.js"></script><script>let a=1</script>')
