@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ..config import load_config
 from ..log import get_logger
-from .archetypes import resolve_layout
+from .archetypes import ARCHETYPE_NAMES, resolve_layout
 from .pipeline import generate_site
 
 log = get_logger(__name__)
@@ -19,9 +19,7 @@ def add_site_subparser(sub, parents=()) -> None:
                     help="Markdown files and/or directories")
     sp.add_argument("-o", "--out-dir", type=Path, default=Path("site"),
                     help="Output directory (default: ./site)")
-    sp.add_argument("--archetype", default=None,
-                    choices=["reading", "presentation", "flyer", "product",
-                             "docs", "report", "custom"])
+    sp.add_argument("--archetype", default=None, choices=list(ARCHETYPE_NAMES))
     sp.add_argument("--layout", default=None,
                     choices=["auto", "multi-page", "single-page"])
     sp.add_argument("--style", default=None, help="Free-text style nudge")
