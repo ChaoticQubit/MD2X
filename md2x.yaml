@@ -170,9 +170,10 @@ ai:
 
   temperature: 0.4        # sampling randomness (0.0–1.0+). Lower = steadier,
                           #   more consistent output; higher = more varied copy.
-                          #   Applied to openai-like endpoints; native
-                          #   "provider:model_id" models use the provider's own
-                          #   default unless they honour this value.
+                          #   ONLY openai-like endpoints honour this. build_model
+                          #   hands native "provider:model_id" string models to
+                          #   agno unchanged, so they never receive this value and
+                          #   always use the provider's own default temperature.
   max_tokens: null        # hard cap on tokens per LLM reply. null = provider
                           #   default. Raise it if enhancements get truncated.
   concurrency: 4          # how many PAGE agents run in parallel (one HTTP call
