@@ -131,6 +131,37 @@ def test_run_page_blocks_emits_sanitized_artifact(monkeypatch):
     assert "evil" not in arts[0].html and "<canvas>" in arts[0].html
 
 
+def test_run_page_blocks_threads_artifacts_into_skill(monkeypatch):
+    pytest.importorskip("agno")
+    from md2x.site import blocks_agent
+    captured = {}
+
+    def fake_load_skill(arch, rm, fid, artifacts=None):
+        captured["artifacts"] = artifacts
+        return "SKILL"
+
+    class _Resp:
+        content = blocks_agent._PageDocModel(
+            blocks=[blocks_agent._BlockM(type="hero", title="T")])
+
+    class _Agent:
+        def __init__(self, *a, **k):
+            pass
+
+        def run(self, prompt):
+            return _Resp()
+
+    monkeypatch.setattr(blocks_agent, "load_skill", fake_load_skill)
+    monkeypatch.setattr(blocks_agent, "Agent", _Agent)
+    monkeypatch.setattr(blocks_agent, "build_model", lambda ai, role: None)
+    doc = Doc(path=Path("a.md"), title="A", outline=[], fragment_html="<p>x</p>")
+    cfg = {"site": {"archetype": "editor", "render_mode": "hybrid",
+                    "fidelity": "synthesize"},
+           "ai": {"model": "x:y", "page_model": None, "retries": 1}}
+    blocks_agent.run_page_blocks(doc, cfg, artifacts=["chart"])
+    assert captured["artifacts"] == ["chart"]
+
+
 # --- site writer ------------------------------------------------------------
 
 def _cfg():

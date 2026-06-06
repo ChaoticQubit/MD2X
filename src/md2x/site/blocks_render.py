@@ -420,12 +420,14 @@ def _blocks_page_html(title: str, accent: str, ds_css: str, body: str) -> str:
     )
 
 
-def _page_doc_for(doc, cfg: dict) -> PageDoc:
-    """AI block tree at synthesize, else the deterministic builder."""
+def _page_doc_for(doc, cfg: dict, plan: SitePlan) -> PageDoc:
+    """AI block tree at synthesize (with the architect's per-page artifacts),
+    else the deterministic builder."""
     if cfg["site"].get("fidelity") == "synthesize":
         try:
             from .blocks_agent import run_page_blocks   # lazy: needs agno
-            return run_page_blocks(doc, cfg)
+            return run_page_blocks(doc, cfg,
+                                   artifacts=plan.page_artifacts.get(doc.slug))
         except Exception as e:
             log.warning("blocks agent failed for %s (%s); deterministic page",
                         doc.slug, e)
@@ -437,7 +439,7 @@ def _render_doc_page(doc, plan: SitePlan, enh: PageEnhancement, cfg: dict) -> st
     accent = _accent(cfg, plan)
     ds_css = design_css_vars(_design_for(plan, accent))
     nav = _nav_html(plan, doc.slug, single_page=False)
-    page = _page_doc_for(doc, cfg)
+    page = _page_doc_for(doc, cfg, plan)
     enh_html = _enhancement_html(enh, plan, single_page=False)
     main = (f'<main id="{_e(doc.slug)}">{enh_html}'
             f"{render_blocks(page.blocks, ds_css=ds_css)}</main>")

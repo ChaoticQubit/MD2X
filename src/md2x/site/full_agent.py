@@ -47,12 +47,16 @@ class _FullPageModel(BaseModel):
     export_label: str = Field(default="", description="Export button label if this is an editor.")
 
 
-def run_full_page(doc, cfg: dict) -> FullPage:
-    """Author a standalone HTML page with the LLM."""
+def run_full_page(doc, cfg: dict, artifacts=None) -> FullPage:
+    """Author a standalone HTML page with the LLM.
+
+    `artifacts` is the architect's per-page artifact selection, injected into the
+    skill so the author sees those pattern templates.
+    """
     ai = cfg["ai"]
     site = cfg["site"]
     skill = load_skill(site["archetype"], site.get("render_mode", "full"),
-                       site.get("fidelity", "synthesize"))
+                       site.get("fidelity", "synthesize"), artifacts=artifacts)
     instr = (skill + "\n\n---\n\n" if skill else "") + _SYSTEM
     agent = Agent(
         model=build_model(ai, role="page"),

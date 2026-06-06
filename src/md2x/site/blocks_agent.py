@@ -169,12 +169,16 @@ def _to_block(m: _BlockM):
     return None
 
 
-def run_page_blocks(doc, cfg: dict) -> PageDoc:
-    """Author a PageDoc with the LLM. Falls back to deterministic if empty."""
+def run_page_blocks(doc, cfg: dict, artifacts=None) -> PageDoc:
+    """Author a PageDoc with the LLM. Falls back to deterministic if empty.
+
+    `artifacts` is the architect's per-page artifact selection; it is injected
+    into the skill so the agent sees exactly those pattern templates.
+    """
     ai = cfg["ai"]
     site = cfg["site"]
     skill = load_skill(site["archetype"], site.get("render_mode", "blocks"),
-                       site.get("fidelity", "synthesize"))
+                       site.get("fidelity", "synthesize"), artifacts=artifacts)
     instr = (skill + "\n\n---\n\n" if skill else "") + _SYSTEM
     agent = Agent(
         model=build_model(ai, role="page"),

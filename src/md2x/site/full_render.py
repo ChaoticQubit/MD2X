@@ -135,7 +135,8 @@ def write_full_site(out_dir: Path, docs, plan: SitePlan, cfg: dict,
         if use_ai and fidelity != "preserve":
             try:
                 from .full_agent import run_full_page   # lazy: needs agno
-                fp = run_full_page(doc, cfg)
+                fp = run_full_page(doc, cfg,
+                                   artifacts=plan.page_artifacts.get(doc.slug))
             except Exception as e:
                 log.warning("full agent failed for %s (%s); deterministic page",
                             doc.slug, e)
