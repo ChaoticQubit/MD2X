@@ -18,7 +18,7 @@ from agno.agent import Agent
 from ..log import get_logger
 from .archetypes import get_archetype, resolve_layout
 from .models import build_model
-from .schemas import Doc, NavItem, SitePlan, PageEnhancement
+from .schemas import Doc, NavItem, SitePlan, PageEnhancement, DesignSystem
 from .skill import load_skill
 
 log = get_logger(__name__)
@@ -39,12 +39,27 @@ class _NavItemModel(BaseModel):
     group: str = ""
 
 
+class _DesignSystemModel(BaseModel):
+    accent: str = "#2563eb"
+    bg: str = "#ffffff"
+    fg: str = "#1f2328"
+    muted: str = "#57606a"
+    card: str = "#f6f8fa"
+    border: str = "#d0d7de"
+    radius: str = "8px"
+    font_sans: str = Field(default=DesignSystem().font_sans)
+    font_mono: str = Field(default=DesignSystem().font_mono)
+    density: str = Field(default="comfortable",
+                         description="comfortable | compact")
+
+
 class _SitePlanModel(BaseModel):
     nav: list[_NavItemModel]
     order: list[str]
     index_title: str = "Documentation"
     index_intro: str = ""
     theme_accent: str = ""
+    design: _DesignSystemModel = Field(default_factory=_DesignSystemModel)
 
 
 class _EnhancementModel(BaseModel):
@@ -57,12 +72,19 @@ class _EnhancementModel(BaseModel):
 # ---- converters ------------------------------------------------------------
 
 def _to_site_plan(pm: _SitePlanModel) -> SitePlan:
+    d = pm.design
+    design = DesignSystem(
+        accent=d.accent, bg=d.bg, fg=d.fg, muted=d.muted, card=d.card,
+        border=d.border, radius=d.radius, font_sans=d.font_sans,
+        font_mono=d.font_mono, density=d.density,
+    )
     return SitePlan(
         nav=[NavItem(title=n.title, slug=n.slug, group=n.group) for n in pm.nav],
         order=list(pm.order),
         index_title=pm.index_title or "Documentation",
         index_intro=pm.index_intro,
         theme_accent=pm.theme_accent,
+        design=design,
     )
 
 
@@ -110,6 +132,8 @@ def run_architect(docs: list[Doc], cfg: dict) -> SitePlan:
         + (f"\n\nUser style brief: {site['style_prompt']}"
            if site.get("style_prompt") else "")
         + f"\n\nTarget layout: {layout}."
+        + "\n\nAlso emit a DesignSystem (palette + radius + density) that fits the "
+          "content and style brief; it becomes the site's --ds-* design tokens."
         + "\n\nUse exactly the given slugs. Output a complete SitePlan."
     )
     agent = _make_agent(cfg, "architect", instr, _SitePlanModel)

@@ -62,3 +62,29 @@ def test_run_page_preserve_returns_empty_enhancement():
     enh = agents.run_page(doc, plan, cfg)
     assert isinstance(enh, PageEnhancement)
     assert enh.tldr == "" and enh.takeaways == [] and enh.related == []
+
+
+def test_architect_designsystem_threads_through(monkeypatch):
+    pytest.importorskip("agno")
+    from md2x.site import agents
+
+    def fake_make_agent(cfg, role, instructions, schema):
+        class _Resp:
+            content = agents._SitePlanModel(
+                nav=[agents._NavItemModel(title="A", slug="a", group="")],
+                order=["a"], index_title="Docs", index_intro="",
+                design=agents._DesignSystemModel(accent="#abcdef",
+                                                 density="compact"))
+
+        class _Agent:
+            def run(self, prompt):
+                return _Resp()
+        return _Agent()
+
+    monkeypatch.setattr(agents, "_make_agent", fake_make_agent)
+    cfg = {"site": {"archetype": "reading", "style_prompt": "", "layout": "auto",
+                    "render_mode": "blocks", "fidelity": "light-enhance"},
+           "ai": {"model": "x:y", "architect_model": None, "retries": 1}}
+    plan = agents.run_architect(_docs(), cfg)
+    assert plan.design.accent == "#abcdef"
+    assert plan.design.density == "compact"
