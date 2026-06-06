@@ -16,6 +16,16 @@ def test_load_skill_includes_active_render_mode():
     assert "Render mode: blocks" in load_skill("reading", render_mode="blocks")
 
 
+def test_load_skill_includes_archetype_file():
+    out = load_skill("explainer", "hybrid", "synthesize")
+    assert "Archetype: explainer" in out
+
+
+def test_load_skill_includes_selected_artifact():
+    out = load_skill("editor", "hybrid", "synthesize", artifacts=["triage-board"])
+    assert "Artifact: triage-board" in out
+
+
 def test_load_skill_tolerates_missing_archetype_and_artifacts():
     # No archetypes/*.md or artifacts/*.md exist yet (added in PR-F); must not raise.
     out = load_skill("does-not-exist", render_mode="blocks",
@@ -26,7 +36,9 @@ def test_load_skill_tolerates_missing_archetype_and_artifacts():
 def test_load_skill_unknown_render_mode_skips_silently():
     out = load_skill("reading", render_mode="banana")
     assert "Living Site Skill" in out
-    assert "Render mode:" not in out  # banana.md doesn't exist; nothing injected
+    # banana.md doesn't exist, so no render-modes file (its heading is "## Render
+    # mode:") is injected. The archetype file may mention "Render mode:" in prose.
+    assert "## Render mode:" not in out
 
 
 def test_skill_files_are_resolvable_as_package_data():
