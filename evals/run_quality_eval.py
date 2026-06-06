@@ -148,7 +148,7 @@ def _generate_html(doc, cfg: dict) -> str:
             fp = _deterministic_page(doc)
         return render_full_page(fp, ds_css)
     # hybrid (and any block-based mode)
-    from md2x.site.blocks_render import render_blocks
+    from md2x.site.blocks_render import _blocks_page_html, render_blocks
     try:
         from md2x.site.blocks_agent import run_page_blocks
         page = run_page_blocks(doc, cfg)
@@ -156,7 +156,13 @@ def _generate_html(doc, cfg: dict) -> str:
         print(f"   blocks agent failed ({e}); deterministic fallback page")
         from md2x.site.blocks import build_page_doc
         page = build_page_doc(doc)
-    return render_blocks(page.blocks, ds_css=ds_css)
+    body = render_blocks(page.blocks, ds_css=ds_css)
+    # Wrap the block body in the same self-contained page shell the real site
+    # writer uses, so the judge sees the complete shipped page — tokens + block
+    # CSS + shared JS inline — not just the bare body fragment.
+    accent = cfg["site"]["theme"]["accent"]
+    return _blocks_page_html(page.title, accent, ds_css,
+                             f'<main>{body}</main>')
 
 
 def _fixed_agent(html: str, name: str):
