@@ -19,6 +19,7 @@ from ..log import get_logger
 from .archetypes import get_archetype, resolve_layout
 from .models import build_model
 from .schemas import Doc, NavItem, SitePlan, PageEnhancement
+from .skill import load_skill
 
 log = get_logger(__name__)
 
@@ -100,8 +101,12 @@ def run_architect(docs: list[Doc], cfg: dict) -> SitePlan:
     site = cfg["site"]
     arch = get_archetype(site["archetype"])
     layout = resolve_layout(site["layout"], site["archetype"])
+    skill = load_skill(site["archetype"],
+                       site.get("render_mode", "blocks"),
+                       site.get("fidelity", "light-enhance"))
     instr = (
-        arch["architect_instructions"]
+        (skill + "\n\n---\n\n" if skill else "")
+        + arch["architect_instructions"]
         + (f"\n\nUser style brief: {site['style_prompt']}"
            if site.get("style_prompt") else "")
         + f"\n\nTarget layout: {layout}."
@@ -129,8 +134,12 @@ def run_page(doc: Doc, plan: SitePlan, cfg: dict) -> PageEnhancement:
     arch = get_archetype(cfg["site"]["archetype"])
     other = ", ".join(f"{n.slug} ({n.title})" for n in plan.nav
                       if n.slug != doc.slug) or "(none)"
+    skill = load_skill(cfg["site"]["archetype"],
+                       cfg["site"].get("render_mode", "blocks"),
+                       cfg["site"].get("fidelity", "light-enhance"))
     instr = (
-        arch["page_instructions"]
+        (skill + "\n\n---\n\n" if skill else "")
+        + arch["page_instructions"]
         + "\n\nProduce ONLY additive aids: a one-sentence TL;DR, up to 4 key "
           "takeaways, and slugs of related pages. Do NOT rewrite or quote the "
           "body. Leave fields empty if nothing adds value."

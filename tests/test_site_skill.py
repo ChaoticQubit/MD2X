@@ -34,3 +34,66 @@ def test_skill_files_are_resolvable_as_package_data():
     root = files("md2x.site.skill")
     assert (root / "SKILL.md").is_file()
     assert (root / "render-modes" / "hybrid.md").is_file()
+
+
+def test_run_architect_injects_skill_into_instructions(monkeypatch):
+    import pytest
+    pytest.importorskip("agno")
+    from pathlib import Path
+    from md2x.site import agents
+    from md2x.site.schemas import Doc
+
+    captured = {}
+
+    def fake_make_agent(cfg, role, instructions, schema):
+        captured["instructions"] = instructions
+
+        class _Resp:
+            content = agents._SitePlanModel(
+                nav=[agents._NavItemModel(title="A", slug="a", group="")],
+                order=["a"], index_title="Docs", index_intro="")
+
+        class _Agent:
+            def run(self, prompt):
+                return _Resp()
+
+        return _Agent()
+
+    monkeypatch.setattr(agents, "_make_agent", fake_make_agent)
+    docs = [Doc(path=Path("a.md"), title="A", outline=["x"], fragment_html="<p>a</p>")]
+    cfg = {"site": {"archetype": "reading", "style_prompt": "", "layout": "auto"},
+           "ai": {"model": "x:y", "architect_model": None, "retries": 1}}
+    agents.run_architect(docs, cfg)
+    assert "Living Site Skill" in captured["instructions"]
+    # archetype instructions still present after the injected skill
+    assert "Plan a calm long-form reading site" in captured["instructions"]
+
+
+def test_run_page_injects_skill_into_instructions(monkeypatch):
+    import pytest
+    pytest.importorskip("agno")
+    from pathlib import Path
+    from md2x.site import agents
+    from md2x.site.schemas import Doc, SitePlan
+
+    captured = {}
+
+    def fake_make_agent(cfg, role, instructions, schema):
+        captured["instructions"] = instructions
+
+        class _Resp:
+            content = agents._EnhancementModel(tldr="t", takeaways=[], related=[])
+
+        class _Agent:
+            def run(self, prompt):
+                return _Resp()
+
+        return _Agent()
+
+    monkeypatch.setattr(agents, "_make_agent", fake_make_agent)
+    doc = Doc(path=Path("a.md"), title="A", outline=["x"], fragment_html="<p>a</p>")
+    plan = SitePlan(nav=[], order=["a"])
+    cfg = {"site": {"archetype": "reading", "fidelity": "light-enhance"},
+           "ai": {"model": "x:y", "page_model": None, "retries": 1}}
+    agents.run_page(doc, plan, cfg)
+    assert "Living Site Skill" in captured["instructions"]
