@@ -28,6 +28,10 @@ def test_build_page_doc_splits_sections():
     doc = Doc(path=Path("g.md"), title="G", outline=["S"],
               fragment_html="<p>lead</p><h2>Sec</h2><p>body</p>")
     page = blocks.build_page_doc(doc)
+    # intro stays a Prose; each H2 becomes an anchored Section with verbatim body
     prose = [b for b in page.blocks if isinstance(b, blocks.Prose)]
     assert any("lead" in p.html for p in prose)
-    assert any("body" in p.html and "Sec" in p.html for p in prose)
+    secs = [b for b in page.blocks if isinstance(b, blocks.Section)]
+    assert len(secs) == 1 and secs[0].title == "Sec" and secs[0].anchor == "sec"
+    assert any(isinstance(b, blocks.Prose) and "body" in b.html
+               for b in secs[0].blocks)

@@ -16,13 +16,13 @@ from pathlib import Path
 from ..log import get_logger
 from .blocks import (
     Artifact, Block, Callout, CardGrid, Chart, Code, Collapsible, DiagramSvg,
-    Figure, Glossary, Hero, KpiStrip, PageDoc, Prose, Quote, RawHtml, Steps,
-    Summary, Table, Tabs, Timeline, build_page_doc,
+    Figure, Glossary, Hero, KpiStrip, PageDoc, Prose, Quote, RawHtml, Section,
+    Steps, Summary, Table, Tabs, Timeline, build_page_doc,
 )
 from .design_css import design_css_vars, render_design_system_page
 from .render import (
     SHELLS, SHELL_JS, _accent, _copy_diagrams, _design_for, _enhancement_html,
-    _nav_html,
+    _href, _nav_html,
 )
 from .sanitize import sanitize_inline, sanitize_svg
 from .schemas import PageEnhancement, SitePlan
@@ -263,6 +263,10 @@ def _artifact(b: Artifact, ds_css: str = "") -> str:
 def render_block(block: Block, ds_css: str = "") -> str:
     if isinstance(block, Artifact):
         return _artifact(block, ds_css)
+    if isinstance(block, Section):
+        inner = render_blocks(block.blocks, ds_css)
+        return (f'<section id="{_e(block.anchor)}" class="b-section">'
+                f'<h2 class="b-section-h">{_e(block.title)}</h2>{inner}</section>')
     fn = _RENDERERS.get(type(block))
     if fn is None:
         log.warning("blocks: unknown block %r; skipped", type(block).__name__)
@@ -348,6 +352,16 @@ a.b-card:hover { border-color:var(--accent); }
   padding:5px 12px; cursor:pointer; font:inherit; font-size:.8rem; }
 .b-artifact iframe { display:block; width:100%; border:0; min-height:120px;
   background:var(--bg); }
+.b-section { scroll-margin-top:16px; padding-top:8px; }
+.b-section-h { font-size:1.5rem; margin:0 0 var(--ds-space-2,1rem); padding-bottom:6px;
+  border-bottom:1px solid var(--border); letter-spacing:-.01em; }
+nav.side .nav-doc { font-weight:700; }
+nav.side .nav-secs { display:flex; flex-direction:column; margin:2px 0 8px; }
+nav.side .nav-secs a { font-size:.86rem; padding:4px 8px 4px 18px; color:var(--muted);
+  border-left:2px solid transparent; border-radius:0 6px 6px 0; }
+nav.side .nav-secs a:hover { color:var(--accent); }
+nav.side .nav-secs a.active { color:var(--accent); font-weight:600;
+  border-left-color:var(--accent); background:var(--card); }
 """
 
 _BLOCKS_JS = (
@@ -359,6 +373,18 @@ _BLOCKS_JS = (
     "x.classList.toggle('active',on);x.setAttribute('aria-selected',on);});"
     "pans.forEach(function(p){p.classList.toggle('active',"
     "p.getAttribute('data-i')===i);});});});});"
+)
+
+# Scroll-spy: highlight the sidebar section link for whichever section is in view.
+_BLOCKS_JS += (
+    "(function(){var ls=document.querySelectorAll('.nav-secs a');if(!ls.length)return;"
+    "var map={};ls.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});"
+    "var ob=new IntersectionObserver(function(es){es.forEach(function(e){"
+    "if(e.isIntersecting){ls.forEach(function(a){a.classList.remove('active');});"
+    "var a=map[e.target.id];if(a){a.classList.add('active');}}});},"
+    "{rootMargin:'-10% 0px -80% 0px'});"
+    "document.querySelectorAll('section.b-section').forEach(function(s){"
+    "ob.observe(s);});})();"
 )
 
 # Host-side broker for hybrid artifacts: resize each iframe to its content, and
@@ -411,12 +437,35 @@ def _page_doc_for(doc, cfg: dict, plan: SitePlan, use_ai: bool) -> PageDoc:
     return build_page_doc(doc)
 
 
+def _section_nav_html(page: PageDoc, plan: SitePlan, active_slug: str) -> str:
+    """Sidebar built from THIS page's sections: the doc title, an anchor link per
+    H2 section (the in-page table of contents), and — when the site has more than
+    one doc — links to the others. Replaces one-file-one-link nav so a single
+    large document is actually navigable."""
+    secs = [b for b in page.blocks if isinstance(b, Section)]
+    parts = ['<nav class="side">']
+    parts.append(f'<a class="nav-doc active" href="#{_e(page.slug)}">'
+                 f"{_e(page.title)}</a>")
+    if secs:
+        parts.append('<div class="nav-secs">')
+        for s in secs:
+            parts.append(f'<a href="#{_e(s.anchor)}">{_e(s.title)}</a>')
+        parts.append("</div>")
+    others = [n for n in plan.nav if n.slug != active_slug]
+    if others:
+        parts.append('<div class="group">More</div>')
+        for n in others:
+            parts.append(f'<a href="{_href(n.slug, False)}">{_e(n.title)}</a>')
+    parts.append("</nav>")
+    return "".join(parts)
+
+
 def _render_doc_page(doc, plan: SitePlan, enh: PageEnhancement, cfg: dict,
                      use_ai: bool) -> str:
     accent = _accent(cfg, plan)
     ds_css = design_css_vars(_design_for(plan, accent))
-    nav = _nav_html(plan, doc.slug, single_page=False)
     page = _page_doc_for(doc, cfg, plan, use_ai)
+    nav = _section_nav_html(page, plan, doc.slug)
     enh_html = _enhancement_html(enh, plan, single_page=False)
     main = (f'<main id="{_e(doc.slug)}">{enh_html}'
             f"{render_blocks(page.blocks, ds_css=ds_css)}</main>")

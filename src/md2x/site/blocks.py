@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Union
 
 from .report.blocks import split_sections
+from .schemas import slugify
 
 # --- leaf records -----------------------------------------------------------
 
@@ -192,17 +193,27 @@ class Artifact:
     export: "Export | None" = None
 
 
+@dataclass
+class Section:
+    """A titled, anchored group of child blocks — one H2 region. Renders a
+    <section id=anchor> with an <h2>, so the sidebar can deep-link to it and the
+    document is navigable instead of one undifferentiated scroll."""
+    title: str
+    anchor: str
+    blocks: list["Block"] = field(default_factory=list)
+
+
 Block = Union[
     Hero, Summary, Prose, KpiStrip, Callout, CardGrid, Timeline, Table, Code,
     Quote, Figure, Chart, Tabs, Collapsible, Steps, DiagramSvg, Glossary, RawHtml,
-    Artifact,
+    Artifact, Section,
 ]
 
 # Tuple form for isinstance dispatch in the renderer.
 BLOCK_TYPES = (
     Hero, Summary, Prose, KpiStrip, Callout, CardGrid, Timeline, Table, Code,
     Quote, Figure, Chart, Tabs, Collapsible, Steps, DiagramSvg, Glossary, RawHtml,
-    Artifact,
+    Artifact, Section,
 )
 
 
@@ -215,22 +226,44 @@ class PageDoc:
 
 
 _H1_RE = re.compile(r"(?is)<h1\b[^>]*>.*?</h1>")
+_IMG_RE = re.compile(r'(?is)<img\b[^>]*\bsrc=["\'](?P<src>[^"\']+)["\'][^>]*>')
+_ALT_RE = re.compile(r'(?is)\balt=["\'](?P<alt>[^"\']*)["\']')
+
+
+def figures_from_html(html_fragment: str) -> list[Figure]:
+    """Pull LOCAL <img> (rendered diagrams) out of a fragment as Figure blocks.
+
+    The synthesize path turns prose into plain-text blocks, which would drop a
+    section's rendered diagrams; surfacing them as Figure blocks lands them back
+    in their section. Remote/data srcs are skipped — the renderer refuses them.
+    """
+    out: list[Figure] = []
+    for m in _IMG_RE.finditer(html_fragment or ""):
+        src = m.group("src").strip()
+        if re.match(r"(?i)^(https?:|data:|javascript:|//)", src):
+            continue
+        alt_m = _ALT_RE.search(m.group(0))
+        out.append(Figure(src=src, alt=alt_m.group("alt") if alt_m else ""))
+    return out
 
 
 def build_page_doc(doc) -> PageDoc:
     """Deterministic PageDoc from a Doc — no LLM. Prose stays verbatim.
 
-    Hero(title) + one Prose per section (intro, then each H2 block). The leading
-    H1 is dropped from the intro because the Hero already shows the title.
+    Hero(title) + intro Prose + one anchored Section per H2 (verbatim body, so
+    every section's tables, lists, and rendered diagrams are preserved). This is
+    the complete baseline: --no-ai, fidelity: preserve, and the per-section
+    agent-failure fallback all rest on it, so a document is never amputated.
     """
     intro_html, sections = split_sections(doc.fragment_html)
     intro_html = _H1_RE.sub("", intro_html).strip()
     blocks: list[Block] = [Hero(title=doc.title)]
     if intro_html:
         blocks.append(Prose(html=intro_html))
-    for sec in sections:
-        body = f"<h2>{sec.title}</h2>{sec.html}" if sec.title else sec.html
-        blocks.append(Prose(html=body))
+    for i, sec in enumerate(sections):
+        anchor = slugify(sec.title) if sec.title else f"section-{i + 1}"
+        blocks.append(Section(title=sec.title, anchor=anchor,
+                              blocks=[Prose(html=sec.html)] if sec.html else []))
     if len(blocks) == 1:                   # no intro, no sections
         blocks.append(Prose(html=doc.fragment_html))
     return PageDoc(slug=doc.slug, title=doc.title, blocks=blocks)
