@@ -62,6 +62,26 @@ def test_generate_site_ai_uses_agents(tmp_path, monkeypatch):
     assert "The quick brown fox." in (out / "intro.html").read_text()
 
 
+def test_generate_site_normalizes_bad_render_mode(tmp_path, monkeypatch):
+    """An invalid render_mode is normalized to the default before render."""
+    from md2x.site import schemas
+    seen = {}
+    monkeypatch.setattr(pipeline, "build_doc", lambda p, c: schemas.Doc(
+        path=p, title="A", outline=[], fragment_html="<p>a</p>"))
+
+    def fake_write_site(out_dir, docs, plan, enh, cfg, *, layout):
+        seen["render_mode"] = cfg["site"]["render_mode"]
+
+    monkeypatch.setattr(pipeline, "write_site", fake_write_site)
+    md = tmp_path / "a.md"; md.write_text("# A\n\nbody\n")
+    cfg = _cfg()
+    cfg["site"]["render_mode"] = "banana"
+    rc = pipeline.generate_site([md], tmp_path / "out", cfg,
+                                use_ai=False, layout="multi-page")
+    assert rc == 0
+    assert seen["render_mode"] == "blocks"   # normalized
+
+
 def test_generate_site_no_md_files_returns_2(tmp_path):
     empty_dir = tmp_path / "docs"
     empty_dir.mkdir()

@@ -11,6 +11,8 @@ from pathlib import Path
 
 from ..log import get_logger
 from .content import build_doc
+from .modes import (DEFAULT_FIDELITY, DEFAULT_RENDER_MODE,
+                    validate_fidelity, validate_render_mode)
 from .render import default_site_plan, write_site
 from .schemas import Doc, PageEnhancement, SitePlan
 
@@ -53,8 +55,14 @@ def generate_site(inputs: list[Path], out_dir: Path, cfg: dict, *,
         log.error("no .md files found in the given inputs")
         return 2
 
-    log.info("resolved %d document(s); layout=%s ai=%s",
-             len(md_files), layout, "on" if use_ai else "off")
+    cfg["site"]["render_mode"] = validate_render_mode(
+        cfg["site"].get("render_mode", DEFAULT_RENDER_MODE))
+    cfg["site"]["fidelity"] = validate_fidelity(
+        cfg["site"].get("fidelity", DEFAULT_FIDELITY))
+
+    log.info("resolved %d document(s); layout=%s ai=%s render_mode=%s fidelity=%s",
+             len(md_files), layout, "on" if use_ai else "off",
+             cfg["site"]["render_mode"], cfg["site"]["fidelity"])
     for p in md_files:
         log.debug("input document: %s", p)
     docs: list[Doc] = [build_doc(p, cfg) for p in md_files]
