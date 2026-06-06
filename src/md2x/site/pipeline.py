@@ -89,19 +89,28 @@ def generate_site(inputs: list[Path], out_dir: Path, cfg: dict, *,
             log.warning("architect agent failed (%s); using default layout", e)
             log.debug("architect failure traceback", exc_info=True)
             plan = default_site_plan(docs, cfg)
-        enh = _enhance_all(docs, plan, cfg)
     else:
-        log.debug("AI disabled; using deterministic plan + empty enhancements")
+        log.debug("AI disabled; using deterministic plan")
         plan = default_site_plan(docs, cfg)
-        enh = {d.slug: PageEnhancement() for d in docs}
 
-    if cfg["site"]["render_mode"] in ("blocks", "hybrid"):
-        # hybrid = the same typed-block pages; the synthesize agent may also emit
-        # sandboxed `artifact` blocks (mounted as CSP-locked iframes by the renderer).
-        from .blocks_render import write_blocks_site
-        write_blocks_site(out_dir, docs, plan, enh, cfg)
-    else:  # full still uses the existing shells until PR-E swaps it in
-        write_site(out_dir, docs, plan, enh, cfg, layout=layout)
+    mode = cfg["site"]["render_mode"]
+    if mode == "full":
+        # full = the author agent emits a standalone, CSP-locked HTML doc per page;
+        # no per-page enhancement aids (the author owns the whole page).
+        from .full_render import write_full_site
+        write_full_site(out_dir, docs, plan, cfg, use_ai=use_ai)
+    else:
+        if use_ai:
+            enh = _enhance_all(docs, plan, cfg)
+        else:
+            enh = {d.slug: PageEnhancement() for d in docs}
+        if mode in ("blocks", "hybrid"):
+            # hybrid = typed-block pages; the synthesize agent may also emit sandboxed
+            # `artifact` blocks (mounted as CSP-locked iframes by the renderer).
+            from .blocks_render import write_blocks_site
+            write_blocks_site(out_dir, docs, plan, enh, cfg)
+        else:
+            write_site(out_dir, docs, plan, enh, cfg, layout=layout)
     log.info("wrote site to %s", out_dir)
     return 0
 
