@@ -97,7 +97,7 @@ def test_real_md_to_docx(tmp_path):
     - the build process exits with code 0;
     - the output .docx file exists;
     - the output file is larger than 1024 bytes;
-    - the output file begins with the ZIP container signature (`b"PK\\x03\\x04"`).
+    - the output file begins with the ZIP container signature (`b"PK\x03\x04"`).
     """
     work = _write_sample(tmp_path)
     out = tmp_path / "doc.docx"
