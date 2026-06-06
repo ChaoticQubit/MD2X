@@ -1,3 +1,4 @@
+import logging
 import textwrap
 import argparse
 import md2x.config as config
@@ -53,14 +54,29 @@ def test_load_config_returns_isolated_copy(tmp_path):
     assert config.DEFAULTS["page"]["margin"] == "0.85in"
 
 
-def test_load_config_malformed_yaml_falls_back(tmp_path, capsys):
+def test_load_config_malformed_yaml_falls_back(tmp_path, caplog):
     bad = tmp_path / "bad.yaml"
     bad.write_text("page: [unclosed")
     md = tmp_path / "doc.md"
     md.write_text("# hi")
-    cfg = config.load_config(bad, md)
+    with caplog.at_level(logging.WARNING, logger="md2x"):
+        cfg = config.load_config(bad, md)
     assert cfg["page"]["margin"] == "0.85in"
-    assert "WARN" in capsys.readouterr().err
+    assert any(r.levelno == logging.WARNING and "failed to parse" in r.message
+               for r in caplog.records)
+
+
+def test_load_config_skips_malformed_and_uses_next_candidate(tmp_path):
+    # The explicit (first) candidate is malformed; a valid md2x.yaml sits next
+    # to the .md file (next candidate). The loader must skip the broken file and
+    # use the valid one instead of giving up and returning bare defaults.
+    bad = tmp_path / "explicit-bad.yaml"
+    bad.write_text("page: [unclosed")
+    (tmp_path / "md2x.yaml").write_text("page:\n  margin: 3in\n")
+    md = tmp_path / "doc.md"
+    md.write_text("# hi")
+    cfg = config.load_config(bad, md)
+    assert cfg["page"]["margin"] == "3in"  # distinct from the 0.85in default
 
 
 def test_defaults_have_format_none():

@@ -33,6 +33,7 @@ from pathlib import Path
 
 from .config import load_config
 from .dotenv import load_default_env
+from .log import get_logger, setup_logging
 from .pipeline import build
 from .formats import detect_target
 from .paths import ensure_venv_yaml
@@ -76,6 +77,23 @@ def apply_cli_overrides(cfg: dict, args: argparse.Namespace) -> dict:
 KNOWN_SUBCMDS = {"convert", "site"}
 
 
+def logging_parent_parser() -> argparse.ArgumentParser:
+    """Shared logging flags, attached to every subcommand via ``parents=``."""
+    p = argparse.ArgumentParser(add_help=False)
+    g = p.add_argument_group("logging")
+    g.add_argument("-v", "--verbose", action="count", default=0,
+                   help="More logs (-v = DEBUG: prompts, responses, timings)")
+    g.add_argument("--quiet", action="store_true",
+                   help="Only warnings and errors")
+    g.add_argument("--log-level", default=None,
+                   choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+                   help="Explicit level (overrides -v/--quiet and "
+                        "MD2X_LOG_LEVEL)")
+    g.add_argument("--log-file", type=Path, default=None,
+                   help="Also write a full DEBUG trace to this file")
+    return p
+
+
 def _normalize_argv(argv: list[str]) -> list[str]:
     """Back-compat: route bare invocations to the `convert` subcommand.
 
@@ -101,8 +119,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Convert Markdown to documents, or generate an AI website.",
     )
     sub = ap.add_subparsers(dest="cmd", required=True)
+    logp = logging_parent_parser()
 
-    cv = sub.add_parser("convert",
+    cv = sub.add_parser("convert", parents=[logp],
                         help="Convert one Markdown file to PDF/DOCX/HTML/EPUB/LaTeX")
     cv.add_argument("input", nargs="?", type=Path, default=None,
                     help="Path to source .md")
@@ -127,7 +146,7 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Print resolved binary paths and exit")
     cv.set_defaults(func=run_convert)
 
-    add_site_subparser(sub)
+    add_site_subparser(sub, parents=[logp])
     return ap
 
 
@@ -153,9 +172,16 @@ def run_convert(args: argparse.Namespace) -> int:
 
 def main() -> int:
     ensure_venv_yaml()
-    for p in load_default_env():
-        print(f"[md2x] loaded environment from {p}")
     argv = _normalize_argv(sys.argv[1:])
     ap = build_parser()
     args = ap.parse_args(argv)
+    # Nothing logs before this point, so configure logging once: from
+    # MD2X_LOG_LEVEL and the parsed -v/--quiet/--log-level/--log-file flags
+    # (explicit flags win over the env var).
+    setup_logging(verbosity=args.verbose, quiet=args.quiet,
+                  level=args.log_level, log_file=args.log_file)
+    log = get_logger("md2x.cli")
+    log.debug("invocation: md2x %s", " ".join(argv))
+    for p in load_default_env():
+        log.info("loaded environment from %s", p)
     return args.func(args)
