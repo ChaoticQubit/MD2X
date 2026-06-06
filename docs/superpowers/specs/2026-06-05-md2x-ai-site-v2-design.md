@@ -95,7 +95,7 @@ Independent, behavior-preserving, ships immediately.
 
 ## Data flow (v2, end state)
 
-```
+```text
 inputs
   → build_doc (verbatim fragment + figure manifest)
   → architect agent → DesignSystem + SitePlan

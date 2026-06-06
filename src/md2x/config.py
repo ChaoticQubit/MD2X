@@ -150,10 +150,14 @@ def load_config(explicit: Path | None, md_path: Path) -> dict:
                 log.info("using config %s", p)
                 return deep_merge(DEFAULTS, data)
             except ImportError:
+                # yaml is a module-level import: if it's unavailable it is
+                # unavailable for every candidate, so stop rather than re-warn.
                 log.warning("PyYAML missing — skipping %s", p)
                 break
             except Exception as e:
+                # Malformed file: skip it and try the next candidate (e.g. a
+                # valid project-root config) before falling back to defaults.
                 log.warning("failed to parse %s: %s", p, e)
-                break
+                continue
     log.info("no md2x.yaml found; using built-in defaults")
     return deep_merge(DEFAULTS, {})

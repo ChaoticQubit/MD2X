@@ -66,5 +66,18 @@ def test_load_config_malformed_yaml_falls_back(tmp_path, caplog):
                for r in caplog.records)
 
 
+def test_load_config_skips_malformed_and_uses_next_candidate(tmp_path):
+    # The explicit (first) candidate is malformed; a valid md2x.yaml sits next
+    # to the .md file (next candidate). The loader must skip the broken file and
+    # use the valid one instead of giving up and returning bare defaults.
+    bad = tmp_path / "explicit-bad.yaml"
+    bad.write_text("page: [unclosed")
+    (tmp_path / "md2x.yaml").write_text("page:\n  margin: 3in\n")
+    md = tmp_path / "doc.md"
+    md.write_text("# hi")
+    cfg = config.load_config(bad, md)
+    assert cfg["page"]["margin"] == "3in"  # distinct from the 0.85in default
+
+
 def test_defaults_have_format_none():
     assert config.DEFAULTS["output"]["format"] is None

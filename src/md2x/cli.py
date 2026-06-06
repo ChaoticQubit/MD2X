@@ -172,11 +172,12 @@ def run_convert(args: argparse.Namespace) -> int:
 
 def main() -> int:
     ensure_venv_yaml()
-    setup_logging()  # default-init so startup steps below are captured
     argv = _normalize_argv(sys.argv[1:])
     ap = build_parser()
     args = ap.parse_args(argv)
-    # Reconfigure now that -v/--quiet/--log-level/--log-file are known.
+    # Nothing logs before this point, so configure logging once: from
+    # MD2X_LOG_LEVEL and the parsed -v/--quiet/--log-level/--log-file flags
+    # (explicit flags win over the env var).
     setup_logging(verbosity=args.verbose, quiet=args.quiet,
                   level=args.log_level, log_file=args.log_file)
     log = get_logger("md2x.cli")
