@@ -95,7 +95,11 @@ def generate_site(inputs: list[Path], out_dir: Path, cfg: dict, *,
         plan = default_site_plan(docs, cfg)
         enh = {d.slug: PageEnhancement() for d in docs}
 
-    write_site(out_dir, docs, plan, enh, cfg, layout=layout)
+    if cfg["site"]["render_mode"] == "blocks":
+        from .blocks_render import write_blocks_site
+        write_blocks_site(out_dir, docs, plan, enh, cfg)
+    else:  # hybrid/full still use the existing shells until PR-D/PR-E swap them in
+        write_site(out_dir, docs, plan, enh, cfg, layout=layout)
     log.info("wrote site to %s", out_dir)
     return 0
 
