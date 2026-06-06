@@ -114,7 +114,7 @@ def render_report(page: ReportPage, accent: str) -> str:
         )
         toc = f'<nav class="toc">{links}</nav>'
 
-    parts = [f'<div class="wrap">']
+    parts = ['<div class="wrap">']
     if page.summary:
         parts.append('<div class="exec"><div class="label">Executive summary</div>'
                      f"<p>{_e(page.summary)}</p></div>")

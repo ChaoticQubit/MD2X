@@ -9,6 +9,7 @@ default behaviour without adding a dependency.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from pathlib import Path
 
 
@@ -39,7 +40,7 @@ def _parse(text: str) -> dict[str, str]:
     return out
 
 
-def load_dotenv(paths) -> list[Path]:
+def load_dotenv(paths: Iterable[Path | str]) -> list[Path]:
     """Load each existing path into ``os.environ`` without overriding real env.
 
     Pre-existing variables (real environment or an earlier file in ``paths``)
@@ -58,7 +59,7 @@ def load_dotenv(paths) -> list[Path]:
         seen.add(rp)
         try:
             data = _parse(p.read_text(encoding="utf-8"))
-        except OSError:
+        except (OSError, UnicodeDecodeError):
             continue
         for k, v in data.items():
             os.environ.setdefault(k, v)
