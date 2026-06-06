@@ -18,8 +18,9 @@ from md2x.site.blocks import (
     figures_from_html,
 )
 from md2x.site.blocks_render import (
-    _BLOCKS_JS, _section_nav_html, render_block, render_blocks,
+    _section_nav_html, render_block, render_blocks,
 )
+from md2x.site.theme import SITE_JS
 from md2x.site.schemas import Doc, NavItem, SitePlan
 
 CHARTER = Path("/Users/chaoticqubit/Documents/FDET_Charter.md")
@@ -101,8 +102,8 @@ def test_section_nav_links_other_docs():
 # --- Task 4: scroll-spy -----------------------------------------------------
 
 def test_blocks_js_has_scrollspy():
-    assert "IntersectionObserver" in _BLOCKS_JS
-    assert "nav-secs" in _BLOCKS_JS
+    assert "IntersectionObserver" in SITE_JS
+    assert "nav-secs" in SITE_JS
 
 
 # --- Task 5: diagram figures ------------------------------------------------

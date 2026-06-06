@@ -10,7 +10,7 @@ from md2x.site.schemas import Doc, NavItem, SitePlan, PageEnhancement
 # --- per-block markup -------------------------------------------------------
 
 def test_hero_and_kpi_and_callout_markup():
-    assert '<header class="b-hero">' in br.render_block(B.Hero(title="T"))
+    assert '<header class="b-hero"' in br.render_block(B.Hero(title="T"))
     kpi = br.render_block(B.KpiStrip(items=[B.Kpi(value="+20%", label="rev")]))
     assert "b-kpi" in kpi and "+20%" in kpi
     co = br.render_block(B.Callout(text="careful", tone="warn"))
