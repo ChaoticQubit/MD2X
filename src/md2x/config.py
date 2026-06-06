@@ -81,6 +81,7 @@ DEFAULTS: dict[str, Any] = {
         "title": None,               # site/index title; None -> "Documentation"
         "layout": "auto",            # auto | multi-page | single-page
         "archetype": "reading",      # reading|presentation|flyer|product|docs|report|custom
+        "render_mode": "blocks",     # blocks | hybrid | full  (flips to hybrid in PR-H)
         "style_prompt": "",
         "fidelity": "light-enhance", # preserve | light-enhance
         "theme": {"accent": "#2563eb", "dark_mode": True},

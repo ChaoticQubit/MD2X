@@ -8,6 +8,11 @@ def test_defaults_have_site_block():
     assert cfg["site"]["fidelity"] == "light-enhance"
 
 
+def test_defaults_have_render_mode():
+    cfg = config.deep_merge(config.DEFAULTS, {})
+    assert cfg["site"]["render_mode"] == "blocks"
+
+
 def test_defaults_have_ai_block():
     cfg = config.deep_merge(config.DEFAULTS, {})
     assert cfg["ai"]["model"] == "anthropic:claude-sonnet-4-6"
