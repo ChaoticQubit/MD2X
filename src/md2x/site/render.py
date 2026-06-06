@@ -8,21 +8,26 @@ the result deploys anywhere as static files.
 from __future__ import annotations
 
 import html
-import re
 import shutil
 from pathlib import Path
 
+from dataclasses import replace
+
 from ..log import get_logger
 from .archetypes import get_shell
-from .schemas import Doc, NavItem, SitePlan, PageEnhancement
+from .schemas import Doc, NavItem, SitePlan, PageEnhancement, DesignSystem
+from .design_css import (
+    _SAFE_COLOR, _DEFAULT_ACCENT, design_css_vars, render_design_system_page)
 
 log = get_logger(__name__)
 
 # --- shared base + per-shell CSS (%ACCENT% substituted at write time) -------
 
 _BASE_CSS = """\
-:root { --accent: %ACCENT%; --bg:#fff; --fg:#1f2328; --muted:#57606a;
-        --card:#f6f8fa; --border:#d0d7de; }
+:root { --accent: %ACCENT%;
+        --bg: var(--ds-bg,#fff); --fg: var(--ds-fg,#1f2328);
+        --muted: var(--ds-muted,#57606a); --card: var(--ds-card,#f6f8fa);
+        --border: var(--ds-border,#d0d7de); --radius: var(--ds-radius,8px); }
 @media (prefers-color-scheme: dark) {
   :root { --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --card:#161b22; --border:#30363d; } }
 * { box-sizing:border-box; }
@@ -106,16 +111,8 @@ _LANDING_JS = ('var io=new IntersectionObserver(function(es){es.forEach('
 
 SHELL_JS = {"sidebar": _SMOOTH_JS, "deck": _DECK_JS, "landing": _LANDING_JS}
 
-# A conservative CSS-color allowlist: #hex (3-8 digits), a bare CSS keyword
-# (e.g. "rebeccapurple"), or rgb()/rgba()/hsl()/hsla() function forms. Anything
-# else is rejected so an AI- or config-supplied accent can never break out of
-# the <style> block.
-_SAFE_COLOR = re.compile(
-    r"^#[0-9a-fA-F]{3,8}$"
-    r"|^[a-zA-Z]{2,32}$"
-    r"|^(rgb|rgba|hsl|hsla)\([0-9.,%\s/]+\)$"
-)
-_DEFAULT_ACCENT = "#2563eb"
+# _SAFE_COLOR / _DEFAULT_ACCENT are owned by design_css and imported above; they
+# stay importable from this module for the report path that already depends on them.
 
 
 # --- helpers ----------------------------------------------------------------
@@ -127,6 +124,12 @@ def _accent(cfg: dict, plan: SitePlan) -> str:
                     value, _DEFAULT_ACCENT)
         return _DEFAULT_ACCENT
     return value
+
+
+def _design_for(plan: SitePlan, accent: str) -> DesignSystem:
+    """The plan's DesignSystem with its accent reconciled to the resolved accent,
+    so the --ds-accent token always matches what the shells actually render."""
+    return replace(plan.design, accent=accent)
 
 
 def _href(slug: str, single_page: bool) -> str:
@@ -141,8 +144,10 @@ def _shell_for(cfg: dict) -> str:
 def default_site_plan(docs: list[Doc], cfg: dict) -> SitePlan:
     """Deterministic plan used by --no-ai and as the agent-failure fallback."""
     nav = [NavItem(title=d.title, slug=d.slug) for d in docs]
+    accent = (cfg["site"].get("theme") or {}).get("accent") or DesignSystem().accent
     return SitePlan(nav=nav, order=[d.slug for d in docs],
-                    index_title=cfg["site"].get("title") or "Documentation")
+                    index_title=cfg["site"].get("title") or "Documentation",
+                    design=DesignSystem(accent=accent))
 
 
 def _nav_html(plan: SitePlan, active_slug: str, single_page: bool) -> str:
@@ -189,12 +194,13 @@ def _enhancement_html(enh: PageEnhancement, plan: SitePlan,
 
 
 def _document(title: str, shell: str, accent: str, body: str,
-              *, assets_inline: bool) -> str:
+              *, assets_inline: bool, ds_css: str = "") -> str:
+    ds = f"<style>{ds_css}</style>\n" if ds_css else ""
     if assets_inline:
-        head = f"<style>{SHELLS[shell].replace('%ACCENT%', accent)}</style>"
+        head = ds + f"<style>{SHELLS[shell].replace('%ACCENT%', accent)}</style>"
         tail = f"<script>{SHELL_JS[shell]}</script>"
     else:
-        head = '<link rel="stylesheet" href="assets/site.css">'
+        head = ds + '<link rel="stylesheet" href="assets/site.css">'
         tail = '<script src="assets/site.js"></script>'
     return (
         "<!doctype html>\n<html lang=\"en\">\n<head>\n"
@@ -218,7 +224,8 @@ def build_page(doc: Doc, plan: SitePlan, enh: PageEnhancement, cfg: dict,
         f"</main></div>"
     )
     return _document(doc.title, "sidebar", accent, body,
-                     assets_inline=assets_inline)
+                     assets_inline=assets_inline,
+                     ds_css=design_css_vars(_design_for(plan, accent)))
 
 
 def build_index(plan: SitePlan, cfg: dict, *, assets_inline: bool) -> str:
@@ -235,7 +242,8 @@ def build_index(plan: SitePlan, cfg: dict, *, assets_inline: bool) -> str:
         f'<div class="cards">{cards}</div></main></div>'
     )
     return _document(plan.index_title, "sidebar", accent, body,
-                     assets_inline=assets_inline)
+                     assets_inline=assets_inline,
+                     ds_css=design_css_vars(_design_for(plan, accent)))
 
 
 def build_single_page(docs: list[Doc], plan: SitePlan,
@@ -257,7 +265,8 @@ def build_single_page(docs: list[Doc], plan: SitePlan,
         )
     body = f'<div class="layout">{nav}<main>' + "".join(sections) + "</main></div>"
     return _document(plan.index_title, "sidebar", accent, body,
-                     assets_inline=True)
+                     assets_inline=True,
+                     ds_css=design_css_vars(_design_for(plan, accent)))
 
 
 # --- deck shell (single file) ----------------------------------------------
@@ -282,7 +291,8 @@ def build_deck(docs: list[Doc], plan: SitePlan,
         dots.append(f'<a href="{_href(slug, single_page=True)}"></a>')
     dots.append("</div>")
     body = f'<div class="deck">{"".join(slides)}</div>{"".join(dots)}'
-    return _document(plan.index_title, "deck", accent, body, assets_inline=True)
+    return _document(plan.index_title, "deck", accent, body, assets_inline=True,
+                     ds_css=design_css_vars(_design_for(plan, accent)))
 
 
 # --- landing shell (single file) -------------------------------------------
@@ -308,7 +318,8 @@ def build_landing(docs: list[Doc], plan: SitePlan,
         )
     body = hero + "".join(blocks)
     return _document(plan.index_title, "landing", accent, body,
-                     assets_inline=True)
+                     assets_inline=True,
+                     ds_css=design_css_vars(_design_for(plan, accent)))
 
 
 # --- diagram copy + dispatch ------------------------------------------------
@@ -353,6 +364,10 @@ def write_site(out_dir: Path, docs: list[Doc], plan: SitePlan,
             log.debug("wrote %s.html", doc.slug)
         (out_dir / "index.html").write_text(
             build_index(plan, cfg, assets_inline=False), encoding="utf-8")
-        log.info("wrote %d page(s) + index + shared assets", len(docs))
+        (out_dir / "design-system.html").write_text(
+            render_design_system_page(_design_for(plan, accent)),
+            encoding="utf-8")
+        log.info("wrote %d page(s) + index + design-system + shared assets",
+                 len(docs))
 
     _copy_diagrams(out_dir, docs)
