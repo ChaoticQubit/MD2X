@@ -22,6 +22,7 @@ from .blocks import Export
 from .full_render import FullPage
 from .guardrails import build_pre_hooks
 from .models import build_model
+from .blocks import figures_from_html
 from .report.blocks import split_sections
 from .schemas import slugify
 from .skill import load_skill
@@ -29,6 +30,17 @@ from .skill import load_skill
 log = get_logger(__name__)
 
 _H1_RE = re.compile(r"(?is)<h1\b[^>]*>.*?</h1>")
+
+
+def _missing_diagrams(section_html: str, authored: str) -> str:
+    """Diagrams the author left out of its fragment, as <img> to append — so a
+    synthesized full-mode section never silently loses its rendered figures."""
+    out = []
+    for fig in figures_from_html(section_html):
+        if fig.src not in authored:
+            out.append(f'<figure class="b-figure"><img src="{_html.escape(fig.src)}"'
+                       f' alt="{_html.escape(fig.alt)}" loading="lazy"></figure>')
+    return "".join(out)
 
 _SYSTEM = (
     "You author ONE self-contained, interactive HTML fragment for a single "
@@ -109,7 +121,9 @@ def run_full_page(doc, cfg: dict, artifacts=None) -> FullPage:
             log.debug("full section %r failure", sec.title, exc_info=True)
             frag = ""
         if not frag:
-            frag = sec.html                      # author's verbatim HTML
+            frag = sec.html                      # author's verbatim HTML (keeps imgs)
+        else:
+            frag += _missing_diagrams(sec.html, frag)   # don't lose rendered diagrams
         anchor = slugify(sec.title) if sec.title else f"section-{id(sec) & 0xffff}"
         heading = (f'<h2 class="b-section-h">{_html.escape(sec.title)}</h2>'
                    if sec.title else "")

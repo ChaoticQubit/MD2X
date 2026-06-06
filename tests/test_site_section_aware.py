@@ -203,3 +203,17 @@ def test_full_page_section_fallback_to_verbatim(monkeypatch):
     fp = FA.run_full_page(doc, cfg)
     assert "S:Alpha" in fp.html       # synthesized
     assert "bbb" in fp.html           # Beta fell back to verbatim — not vanished
+
+
+def test_full_page_preserves_diagrams_author_dropped(monkeypatch):
+    import md2x.site.full_agent as FA
+    doc = _doc('<h1>D</h1><h2>Org</h2><p>x</p>'
+               '<img src="diagrams/d/mermaid_01.png" alt="chart">', title="D")
+    # author returns a fragment WITHOUT the diagram — it must be re-appended
+    monkeypatch.setattr(FA, "run_full_section",
+                        lambda title, html, cfg, artifacts=None: "<p>synth, no img</p>")
+    cfg = {"ai": {"concurrency": 1, "retries": 0},
+           "site": {"archetype": "reading", "render_mode": "full",
+                    "fidelity": "synthesize"}}
+    fp = FA.run_full_page(doc, cfg)
+    assert "diagrams/d/mermaid_01.png" in fp.html       # diagram not lost
