@@ -9,6 +9,8 @@ def test_pagedoc_and_leaves_construct():
     assert blocks.Kpi(value="1").label == ""
     assert blocks.Callout(text="x").tone == "info"
     assert blocks.Chart(kind="bar").points == []
+    assert blocks.Artifact(kind="chart").export is None
+    assert blocks.Export().format == "markdown" and blocks.Export().label == "Copy"
 
 
 def test_build_page_doc_hero_then_prose_verbatim():

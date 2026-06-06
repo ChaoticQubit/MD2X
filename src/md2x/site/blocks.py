@@ -171,15 +171,38 @@ class RawHtml:
     html: str
 
 
+@dataclass
+class Export:
+    """Round-trip contract for an editor artifact (Thariq: every editor ends in
+    an export button)."""
+    format: str = "markdown"               # markdown | json | text
+    label: str = "Copy"
+
+
+@dataclass
+class Artifact:
+    """A self-contained interactive widget mounted in a sandboxed, CSP-locked
+    iframe (hybrid mode). Its html/css/js are isolated — the blast radius is the
+    iframe. When it is an editor, `export` wires the md2x:export round-trip."""
+    kind: str                              # e.g. triage-board, prompt-tuner, chart
+    title: str = ""
+    html: str = ""
+    css: str = ""
+    js: str = ""
+    export: "Export | None" = None
+
+
 Block = Union[
     Hero, Summary, Prose, KpiStrip, Callout, CardGrid, Timeline, Table, Code,
     Quote, Figure, Chart, Tabs, Collapsible, Steps, DiagramSvg, Glossary, RawHtml,
+    Artifact,
 ]
 
 # Tuple form for isinstance dispatch in the renderer.
 BLOCK_TYPES = (
     Hero, Summary, Prose, KpiStrip, Callout, CardGrid, Timeline, Table, Code,
     Quote, Figure, Chart, Tabs, Collapsible, Steps, DiagramSvg, Glossary, RawHtml,
+    Artifact,
 )
 
 
