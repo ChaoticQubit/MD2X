@@ -46,6 +46,7 @@ def test_generate_site_ai_uses_agents(tmp_path, monkeypatch):
     (docs_dir / "intro.md").write_text("# Intro\n\nThe quick brown fox.\n")
     out = tmp_path / "site"
     cfg = _cfg()
+    cfg["site"]["fidelity"] = "light-enhance"  # exercise the enhancement path
 
     from md2x.site import schemas
     monkeypatch.setattr(pipeline, "run_architect",
@@ -113,7 +114,9 @@ def test_generate_site_architect_failure_degrades_to_default(tmp_path, monkeypat
     monkeypatch.setattr(pipeline, "run_page",
         lambda doc, plan, c: __import__("md2x.site.schemas", fromlist=["PageEnhancement"]).PageEnhancement())
 
-    rc = pipeline.generate_site([docs_dir], out, _cfg(), use_ai=True,
+    cfg = _cfg()
+    cfg["site"]["fidelity"] = "light-enhance"
+    rc = pipeline.generate_site([docs_dir], out, cfg, use_ai=True,
                                 layout="multi-page")
     assert rc == 0
     assert (out / "index.html").exists()

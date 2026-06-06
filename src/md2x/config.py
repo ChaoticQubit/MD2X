@@ -81,9 +81,9 @@ DEFAULTS: dict[str, Any] = {
         "title": None,               # site/index title; None -> "Documentation"
         "layout": "auto",            # auto | multi-page | single-page
         "archetype": "reading",      # reading|presentation|flyer|product|docs|review|plan|explainer|report|editor|design|custom
-        "render_mode": "blocks",     # blocks | hybrid | full  (flips to hybrid in PR-H)
+        "render_mode": "hybrid",     # blocks | hybrid | full  (dynamic-by-default)
         "style_prompt": "",
-        "fidelity": "light-enhance", # preserve | light-enhance
+        "fidelity": "synthesize",    # preserve | light-enhance | synthesize
         "theme": {"accent": "#2563eb", "dark_mode": True},
         "features": ["search", "animations", "smooth-scroll"],
         "recursive": True,

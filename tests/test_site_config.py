@@ -5,12 +5,12 @@ def test_defaults_have_site_block():
     cfg = config.deep_merge(config.DEFAULTS, {})
     assert cfg["site"]["archetype"] == "reading"
     assert cfg["site"]["layout"] == "auto"
-    assert cfg["site"]["fidelity"] == "light-enhance"
+    assert cfg["site"]["fidelity"] == "synthesize"
 
 
 def test_defaults_have_render_mode():
     cfg = config.deep_merge(config.DEFAULTS, {})
-    assert cfg["site"]["render_mode"] == "blocks"
+    assert cfg["site"]["render_mode"] == "hybrid"
 
 
 def test_defaults_have_ai_block():
