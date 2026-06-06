@@ -15,9 +15,9 @@ from pathlib import Path
 
 from ..log import get_logger
 from .blocks import (
-    Block, Callout, CardGrid, Chart, Code, Collapsible, DiagramSvg, Figure,
-    Glossary, Hero, KpiStrip, PageDoc, Prose, Quote, RawHtml, Steps, Summary,
-    Table, Tabs, Timeline, build_page_doc,
+    Artifact, Block, Callout, CardGrid, Chart, Code, Collapsible, DiagramSvg,
+    Figure, Glossary, Hero, KpiStrip, PageDoc, Prose, Quote, RawHtml, Steps,
+    Summary, Table, Tabs, Timeline, build_page_doc,
 )
 from .design_css import design_css_vars, render_design_system_page
 from .render import (
@@ -242,7 +242,52 @@ _RENDERERS = {
 }
 
 
-def render_block(block: Block) -> str:
+# --- artifact (hybrid): sandboxed, CSP-locked iframe ------------------------
+
+# default-src 'none' blocks ALL network (no fetch/xhr/ws/remote anything); only
+# inline style + inline script run. Combined with sandbox="allow-scripts" (and no
+# allow-same-origin), the artifact cannot reach the parent or the network.
+_ARTIFACT_CSP = ("default-src 'none'; style-src 'unsafe-inline'; "
+                 "script-src 'unsafe-inline'; img-src data:; font-src data:")
+
+# Posts its height to the host so the iframe auto-sizes (no scrollbars).
+_RESIZE_JS = (
+    ";(function(){function h(){try{parent.postMessage({type:'md2x:resize',"
+    "height:document.documentElement.scrollHeight},'*');}catch(e){}}"
+    "window.addEventListener('load',h);"
+    "if(window.ResizeObserver){new ResizeObserver(h).observe(document.body);}"
+    "setTimeout(h,60);})();"
+)
+
+
+def _artifact(b: Artifact, ds_css: str = "") -> str:
+    srcdoc = (
+        '<!doctype html><html><head><meta charset="utf-8">'
+        f'<meta http-equiv="Content-Security-Policy" content="{_ARTIFACT_CSP}">'
+        f"<style>{ds_css} {b.css} "
+        "html,body{margin:0;padding:8px;font-family:var(--ds-font-sans,system-ui);"
+        "color:var(--ds-fg,#1f2328);background:transparent}</style></head><body>"
+        f"{b.html}<script>{b.js}\n{_RESIZE_JS}</script></body></html>"
+    )
+    btn = ""
+    if b.export is not None:
+        btn = (f'<button class="b-export" data-format="{_e(b.export.format)}">'
+               f"{_e(b.export.label)}</button>")
+    title = (f'<span class="b-artifact-title">{_e(b.title)}</span>'
+             if b.title else "<span></span>")
+    # The whole srcdoc is attribute-escaped, so artifact markup (even a stray
+    # </iframe>) cannot break out into the host document.
+    return (
+        f'<div class="b-artifact" data-kind="{_e(b.kind)}">'
+        f'<div class="b-artifact-bar">{title}{btn}</div>'
+        f'<iframe sandbox="allow-scripts" loading="lazy" '
+        f'title="{_e(b.title or b.kind)}" srcdoc="{_e(srcdoc)}"></iframe></div>'
+    )
+
+
+def render_block(block: Block, ds_css: str = "") -> str:
+    if isinstance(block, Artifact):
+        return _artifact(block, ds_css)
     fn = _RENDERERS.get(type(block))
     if fn is None:
         log.warning("blocks: unknown block %r; skipped", type(block).__name__)
@@ -250,8 +295,8 @@ def render_block(block: Block) -> str:
     return fn(block)
 
 
-def render_blocks(blocks: list[Block]) -> str:
-    return "".join(render_block(b) for b in blocks)
+def render_blocks(blocks: list[Block], ds_css: str = "") -> str:
+    return "".join(render_block(b, ds_css) for b in blocks)
 
 
 # --- block CSS + JS (shared; ride the page, not per-block) -------------------
@@ -319,6 +364,15 @@ a.b-card:hover { border-color:var(--accent); }
 .b-glossary dt { font-weight:650; color:var(--accent); margin-top:10px; }
 .b-glossary dd { margin:2px 0 0; color:var(--muted); }
 .b-diagram svg { max-width:100%; height:auto; }
+.b-artifact { border:1px solid var(--border); border-radius:var(--radius,8px);
+  overflow:hidden; background:var(--card); }
+.b-artifact-bar { display:flex; justify-content:space-between; align-items:center;
+  padding:8px 12px; border-bottom:1px solid var(--border); font-size:.82rem; }
+.b-artifact-title { font-weight:650; color:var(--muted); }
+.b-export { background:var(--accent); color:#fff; border:0; border-radius:6px;
+  padding:5px 12px; cursor:pointer; font:inherit; font-size:.8rem; }
+.b-artifact iframe { display:block; width:100%; border:0; min-height:120px;
+  background:var(--bg); }
 """
 
 _BLOCKS_JS = (
@@ -332,13 +386,32 @@ _BLOCKS_JS = (
     "p.getAttribute('data-i')===i);});});});});"
 )
 
+# Host-side broker for hybrid artifacts: resize each iframe to its content, and
+# copy the payload an editor artifact exports. The export button posts a request
+# INTO the iframe; the artifact answers with md2x:export.
+_HYBRID_JS = (
+    "window.addEventListener('message',function(e){var d=e.data||{};"
+    "if(d.type==='md2x:resize'&&d.height){"
+    "document.querySelectorAll('.b-artifact iframe').forEach(function(f){"
+    "if(f.contentWindow===e.source){f.style.height=(d.height+4)+'px';}});}"
+    "if(d.type==='md2x:export'){var p=typeof d.payload==='string'?d.payload:"
+    "JSON.stringify(d.payload,null,2);if(navigator.clipboard&&p){"
+    "navigator.clipboard.writeText(p);}}});"
+    "document.querySelectorAll('.b-export').forEach(function(b){"
+    "b.addEventListener('click',function(){var w=b.closest('.b-artifact'),"
+    "f=w&&w.querySelector('iframe');if(f&&f.contentWindow){"
+    "f.contentWindow.postMessage({type:'md2x:request-export',"
+    "format:b.getAttribute('data-format')},'*');}});});"
+)
+
 
 # --- page + site assembly ---------------------------------------------------
 
 def _blocks_page_html(title: str, accent: str, ds_css: str, body: str) -> str:
     shell_css = SHELLS["sidebar"].replace("%ACCENT%", accent)
     head = (f"<style>{ds_css}</style>\n<style>{shell_css}\n{_BLOCKS_CSS}</style>")
-    tail = f"<script>{SHELL_JS['sidebar']}</script>\n<script>{_BLOCKS_JS}</script>"
+    tail = (f"<script>{SHELL_JS['sidebar']}</script>\n<script>{_BLOCKS_JS}</script>\n"
+            f"<script>{_HYBRID_JS}</script>")
     return (
         '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
@@ -366,7 +439,8 @@ def _render_doc_page(doc, plan: SitePlan, enh: PageEnhancement, cfg: dict) -> st
     nav = _nav_html(plan, doc.slug, single_page=False)
     page = _page_doc_for(doc, cfg)
     enh_html = _enhancement_html(enh, plan, single_page=False)
-    main = (f'<main id="{_e(doc.slug)}">{enh_html}{render_blocks(page.blocks)}</main>')
+    main = (f'<main id="{_e(doc.slug)}">{enh_html}'
+            f"{render_blocks(page.blocks, ds_css=ds_css)}</main>")
     body = f'<div class="layout">{nav}{main}</div>'
     return _blocks_page_html(doc.title, accent, ds_css, body)
 

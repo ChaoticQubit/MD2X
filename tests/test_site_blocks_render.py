@@ -73,6 +73,64 @@ def test_render_blocks_concatenates():
     assert "b-hero" in h and "b-summary" in h
 
 
+# --- hybrid: sandboxed artifacts -------------------------------------------
+
+def test_artifact_mounts_sandboxed_csp_iframe():
+    h = br.render_block(B.Artifact(kind="board", title="T", html="<b>hi</b>"),
+                        ds_css=":root{--ds-accent:#abcdef}")
+    assert 'sandbox="allow-scripts"' in h and "srcdoc=" in h
+    assert "allow-same-origin" not in h                # isolated origin
+    assert "Content-Security-Policy" in h and "default-src" in h
+    assert "--ds-accent" in h                           # tokens injected
+    assert "b-artifact" in h
+    assert "&lt;b&gt;" in h and "<b>hi</b>" not in h    # srcdoc attribute-escaped
+    assert "http://" not in h and "https://" not in h
+
+
+def test_artifact_export_button_present_when_export_set():
+    h = br.render_block(B.Artifact(kind="editor", title="T", html="<i>x</i>",
+                                   export=B.Export(label="Copy MD", format="markdown")))
+    assert "b-export" in h and 'data-format="markdown"' in h and "Copy MD" in h
+
+
+def test_artifact_no_export_no_button():
+    h = br.render_block(B.Artifact(kind="chart", html="<svg></svg>"))
+    assert "b-export" not in h
+
+
+def test_run_page_blocks_emits_sanitized_artifact(monkeypatch):
+    pytest.importorskip("agno")
+    from md2x.site import blocks_agent
+
+    class _Resp:
+        content = blocks_agent._PageDocModel(blocks=[
+            blocks_agent._BlockM(type="hero", title="T"),
+            blocks_agent._BlockM(
+                type="artifact", kind="chart",
+                html='<canvas></canvas><script src="https://evil/x.js"></script>',
+                js="render();", export_format="json", export_label="Export JSON"),
+        ])
+
+    class _Agent:
+        def __init__(self, *a, **k):
+            pass
+
+        def run(self, prompt):
+            return _Resp()
+
+    monkeypatch.setattr(blocks_agent, "Agent", _Agent)
+    monkeypatch.setattr(blocks_agent, "build_model", lambda ai, role: None)
+    doc = Doc(path=Path("a.md"), title="A", outline=[], fragment_html="<p>x</p>")
+    cfg = {"site": {"archetype": "explainer", "render_mode": "hybrid",
+                    "fidelity": "synthesize"},
+           "ai": {"model": "x:y", "page_model": None, "retries": 1}}
+    page = blocks_agent.run_page_blocks(doc, cfg)
+    arts = [b for b in page.blocks if isinstance(b, B.Artifact)]
+    assert len(arts) == 1
+    assert arts[0].export is not None and arts[0].export.format == "json"
+    assert "evil" not in arts[0].html and "<canvas>" in arts[0].html
+
+
 # --- site writer ------------------------------------------------------------
 
 def _cfg():
