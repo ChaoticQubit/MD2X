@@ -11,7 +11,6 @@ blocks_render so `--no-ai` / non-synthesize paths never need the [ai] extra.
 from __future__ import annotations
 
 import re
-import time
 from concurrent.futures import ThreadPoolExecutor
 
 from pydantic import BaseModel, Field
@@ -24,6 +23,7 @@ from .blocks import (
     Tab, Table, Tabs, Term, Timeline, build_page_doc, figures_from_html,
 )
 from .guardrails import build_pre_hooks
+from .invoke import invoke_agent
 from .models import build_model
 from .report.blocks import split_sections
 from .sanitize import sanitize_artifact_html
@@ -198,10 +198,8 @@ def run_section_blocks(title: str, section_html: str, cfg: dict,
         "tabular data, steps for procedures, timelines for chronology.\n\n"
         f"Section body (HTML):\n{section_html}"
     )
-    t0 = time.perf_counter()
-    resp = agent.run(prompt)
-    log.debug("blocks section %r: responded in %.2fs", title,
-              time.perf_counter() - t0)
+    resp = invoke_agent(agent, prompt, role="blocks-section", label=title,
+                        expect=_PageDocModel, timeout=cfg["ai"].get("timeout"))
     model: _PageDocModel = resp.content
     return [b for b in (_to_block(m) for m in model.blocks[:_MAX_SECTION_BLOCKS])
             if b is not None and not isinstance(b, Hero)]
