@@ -130,8 +130,10 @@ def extract_stats(text: str, limit: int = 4) -> list[Stat]:
     seen: set[str] = set()
     for m in _STAT_RE.finditer(text):
         value = m.group(0).strip()
-        if not re.search(r"[%$KMBx]", value):
-            continue  # require a unit/currency so bare numbers don't flood in
+        # Require a unit/currency so bare numbers don't flood in. Case-insensitive
+        # to match _STAT_RE (which is re.IGNORECASE), so "40k"/"1.2m" are kept.
+        if not re.search(r"[%$KMBx]", value, re.I):
+            continue
         if value in seen:
             continue
         seen.add(value)

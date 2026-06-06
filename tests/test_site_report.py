@@ -35,6 +35,7 @@ def test_split_sections_splits_on_h2_and_keeps_body_verbatim():
 
 def test_split_sections_no_h2_returns_no_sections():
     intro, secs = split_sections("<p>just prose</p>")
+    assert intro == "<p>just prose</p>"  # whole fragment returned as intro
     assert secs == []
 
 
@@ -44,6 +45,13 @@ def test_extract_stats_keeps_units_drops_bare_numbers():
     assert any("%" in v for v in values)
     assert any("$" in v for v in values)
     assert "3" not in values  # bare integer dropped (no unit)
+
+
+def test_extract_stats_keeps_lowercase_magnitude_units():
+    # _STAT_RE is re.IGNORECASE, so the unit filter must be too.
+    values = [s.value for s in extract_stats("Signups hit 40k and ARR reached 1.2m.")]
+    assert any(v.lower().endswith("k") for v in values)  # 40k kept
+    assert any(v.lower().endswith("m") for v in values)  # 1.2m kept
 
 
 def test_build_report_page_from_doc():
