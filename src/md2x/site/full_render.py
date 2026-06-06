@@ -22,6 +22,7 @@ from ..log import get_logger
 from .blocks import Export
 from .design_css import design_css_vars, render_design_system_page
 from .render import _accent, _copy_diagrams, _design_for
+from .sanitize import sanitize_full
 from .schemas import SitePlan
 
 log = get_logger(__name__)
@@ -42,28 +43,8 @@ def _e(text) -> str:
     return html.escape("" if text is None else str(text), quote=True)
 
 
-# --- sanitizer (keep inline scripts/styles; strip external/network) ---------
-
-_EXT_SCRIPT = re.compile(
-    r'(?is)<script\b[^>]*\bsrc\s*=\s*["\']?\s*(?:https?:|//)[^>]*>(?:\s*</script\s*>)?')
-_EXT_LINK = re.compile(
-    r'(?is)<link\b[^>]*\bhref\s*=\s*["\']?\s*(?:https?:|//)[^>]*>')
-_EXT_IFRAME_SRC = re.compile(
-    r'(?i)(<iframe\b[^>]*\bsrc\s*=\s*["\'])\s*(?:https?:|//)[^"\']*(["\'])')
-_EXT_IMG_SRC = re.compile(
-    r'(?i)(<img\b[^>]*\bsrc\s*=\s*["\'])\s*(?:https?:|//)[^"\']*(["\'])')
-_IMPORT_URL = re.compile(r'(?i)@import\s+(?:url\()?["\']?\s*(?:https?:|//)[^;]*;?')
-
-
-def sanitize_full(doc: str) -> str:
-    """Strip external/network references. Inline `<script>`/`<style>` are kept —
-    they are full mode's whole point; the CSP blocks network at runtime."""
-    s = _EXT_SCRIPT.sub("", doc or "")
-    s = _EXT_LINK.sub("", s)
-    s = _IMPORT_URL.sub("", s)
-    s = _EXT_IFRAME_SRC.sub(r"\1#\2", s)
-    s = _EXT_IMG_SRC.sub(r"\1#\2", s)
-    return s
+# sanitize_full is the canonical sanitizer from sanitize.py, imported above and
+# re-exposed here for callers that reference it on this module.
 
 
 # --- standalone page assembly -----------------------------------------------

@@ -24,6 +24,7 @@ from .render import (
     SHELLS, SHELL_JS, _accent, _copy_diagrams, _design_for, _enhancement_html,
     _nav_html,
 )
+from .sanitize import sanitize_inline, sanitize_svg
 from .schemas import PageEnhancement, SitePlan
 
 log = get_logger(__name__)
@@ -33,34 +34,8 @@ def _e(text) -> str:
     return html.escape("" if text is None else str(text), quote=True)
 
 
-# --- sanitizers (minimal; PR-G hardens) -------------------------------------
-
-_SCRIPT_RE = re.compile(r"(?is)<script\b.*?</script\s*>")
-_DANGER_TAGS_RE = re.compile(r"(?is)</?(?:iframe|object|embed|link|meta|base|form)\b[^>]*>")
-_ON_ATTR_RE = re.compile(r"(?is)\son\w+\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+)")
-_JS_URL_RE = re.compile(r"(?i)(href|src|xlink:href)\s*=\s*([\"'])\s*javascript:[^\"']*\2")
-_EXT_URL_RE = re.compile(r"(?i)(href|src|xlink:href)\s*=\s*([\"'])\s*https?:[^\"']*\2")
-_FOREIGN_RE = re.compile(r"(?is)<foreignObject\b.*?</foreignObject\s*>")
-
-
-def sanitize_inline(markup: str) -> str:
-    """Strip scripts, event handlers, dangerous tags, and remote/JS URLs."""
-    s = _SCRIPT_RE.sub("", markup or "")
-    s = _DANGER_TAGS_RE.sub("", s)
-    s = _ON_ATTR_RE.sub("", s)
-    s = _JS_URL_RE.sub(r"\1=\2#\2", s)
-    s = _EXT_URL_RE.sub(r"\1=\2#\2", s)
-    return s
-
-
-def sanitize_svg(svg: str) -> str:
-    """Keep drawing markup; drop scripts, foreignObject, handlers, remote refs."""
-    s = _SCRIPT_RE.sub("", svg or "")
-    s = _FOREIGN_RE.sub("", s)
-    s = _ON_ATTR_RE.sub("", s)
-    s = _JS_URL_RE.sub(r"\1=\2#\2", s)
-    s = _EXT_URL_RE.sub(r"\1=\2#\2", s)
-    return s
+# sanitize_inline / sanitize_svg are the canonical sanitizers from sanitize.py,
+# imported above and re-exposed here for callers that reference them on this module.
 
 
 # --- per-block renderers ----------------------------------------------------
