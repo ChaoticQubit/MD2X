@@ -10,6 +10,7 @@ blocks_render so `--no-ai` / non-synthesize paths never need the [ai] extra.
 """
 from __future__ import annotations
 
+import re
 import time
 
 from pydantic import BaseModel, Field
@@ -17,9 +18,9 @@ from agno.agent import Agent
 
 from ..log import get_logger
 from .blocks import (
-    Callout, Card, CardGrid, Code, Event, Glossary, Hero, Kpi, KpiStrip,
-    PageDoc, Prose, Quote, Step, Steps, Summary, Tab, Table, Tabs, Term,
-    Timeline, build_page_doc,
+    Artifact, Callout, Card, CardGrid, Code, Event, Export, Glossary, Hero, Kpi,
+    KpiStrip, PageDoc, Prose, Quote, Step, Steps, Summary, Tab, Table, Tabs,
+    Term, Timeline, build_page_doc,
 )
 from .models import build_model
 from .skill import load_skill
@@ -28,6 +29,16 @@ log = get_logger(__name__)
 
 _MAX_BLOCKS = 24
 _MAX_ITEMS = 12
+
+# Defense-in-depth: strip external <script src> from artifact HTML. The artifact
+# iframe's CSP (default-src 'none') is the real network boundary; this just keeps
+# the emitted markup clean. PR-G adds the full artifact-HTML sanitizer.
+_EXT_SCRIPT_RE = re.compile(
+    r'(?is)<script\b[^>]*\bsrc\s*=\s*["\']?\s*(?:https?:|//)[^>]*>(?:\s*</script\s*>)?')
+
+
+def _sanitize_artifact(markup: str) -> str:
+    return _EXT_SCRIPT_RE.sub("", markup or "")
 
 _SYSTEM = (
     "You restructure a Markdown document into a typed block tree for a polished, "
@@ -77,7 +88,8 @@ class _TermM(BaseModel):
 
 class _BlockM(BaseModel):
     type: str = Field(description="hero|summary|prose|callout|kpi_strip|card_grid|"
-                                  "timeline|steps|tabs|table|quote|code|glossary")
+                                  "timeline|steps|tabs|table|quote|code|glossary|"
+                                  "artifact (artifact only in hybrid mode)")
     title: str = ""
     subtitle: str = ""
     kicker: str = ""
@@ -95,6 +107,13 @@ class _BlockM(BaseModel):
     terms: list[_TermM] = Field(default_factory=list)
     headers: list[str] = Field(default_factory=list)
     rows: list[list[str]] = Field(default_factory=list)
+    # artifact fields (hybrid): a self-contained interactive widget.
+    kind: str = ""
+    html: str = ""
+    css: str = ""
+    js: str = ""
+    export_format: str = ""
+    export_label: str = ""
 
 
 class _PageDocModel(BaseModel):
@@ -140,6 +159,12 @@ def _to_block(m: _BlockM):
     if t == "glossary":
         return Glossary(terms=[Term(term=g.term, definition=g.definition)
                                for g in m.terms[:_MAX_ITEMS] if g.term.strip()])
+    if t == "artifact":
+        exp = (Export(format=m.export_format or "markdown", label=m.export_label)
+               if m.export_label.strip() else None)
+        return Artifact(kind=m.kind or "widget", title=m.title,
+                        html=_sanitize_artifact(m.html), css=m.css, js=m.js,
+                        export=exp)
     log.warning("blocks agent: unknown block type %r; dropped", m.type)
     return None
 
