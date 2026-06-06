@@ -98,13 +98,13 @@ def test_artifact_no_export_no_button():
     assert "b-export" not in h
 
 
-def test_run_page_blocks_emits_sanitized_artifact(monkeypatch):
+def test_run_section_blocks_emits_sanitized_artifact(monkeypatch):
     pytest.importorskip("agno")
     from md2x.site import blocks_agent
 
     class _Resp:
         content = blocks_agent._PageDocModel(blocks=[
-            blocks_agent._BlockM(type="hero", title="T"),
+            blocks_agent._BlockM(type="hero", title="T"),   # filtered per-section
             blocks_agent._BlockM(
                 type="artifact", kind="chart",
                 html='<canvas></canvas><script src="https://evil/x.js"></script>',
@@ -120,18 +120,18 @@ def test_run_page_blocks_emits_sanitized_artifact(monkeypatch):
 
     monkeypatch.setattr(blocks_agent, "Agent", _Agent)
     monkeypatch.setattr(blocks_agent, "build_model", lambda ai, role: None)
-    doc = Doc(path=Path("a.md"), title="A", outline=[], fragment_html="<p>x</p>")
     cfg = {"site": {"archetype": "explainer", "render_mode": "hybrid",
                     "fidelity": "synthesize"},
            "ai": {"model": "x:y", "page_model": None, "retries": 1}}
-    page = blocks_agent.run_page_blocks(doc, cfg)
-    arts = [b for b in page.blocks if isinstance(b, B.Artifact)]
+    kids = blocks_agent.run_section_blocks("Sec", "<p>x</p>", cfg)
+    arts = [b for b in kids if isinstance(b, B.Artifact)]
     assert len(arts) == 1
     assert arts[0].export is not None and arts[0].export.format == "json"
     assert "evil" not in arts[0].html and "<canvas>" in arts[0].html
+    assert not any(isinstance(b, B.Hero) for b in kids)   # a section owns no hero
 
 
-def test_run_page_blocks_threads_artifacts_into_skill(monkeypatch):
+def test_run_section_blocks_threads_artifacts_into_skill(monkeypatch):
     pytest.importorskip("agno")
     from md2x.site import blocks_agent
     captured = {}
@@ -142,7 +142,7 @@ def test_run_page_blocks_threads_artifacts_into_skill(monkeypatch):
 
     class _Resp:
         content = blocks_agent._PageDocModel(
-            blocks=[blocks_agent._BlockM(type="hero", title="T")])
+            blocks=[blocks_agent._BlockM(type="prose", text="hi")])
 
     class _Agent:
         def __init__(self, *a, **k):
@@ -154,11 +154,10 @@ def test_run_page_blocks_threads_artifacts_into_skill(monkeypatch):
     monkeypatch.setattr(blocks_agent, "load_skill", fake_load_skill)
     monkeypatch.setattr(blocks_agent, "Agent", _Agent)
     monkeypatch.setattr(blocks_agent, "build_model", lambda ai, role: None)
-    doc = Doc(path=Path("a.md"), title="A", outline=[], fragment_html="<p>x</p>")
     cfg = {"site": {"archetype": "editor", "render_mode": "hybrid",
                     "fidelity": "synthesize"},
            "ai": {"model": "x:y", "page_model": None, "retries": 1}}
-    blocks_agent.run_page_blocks(doc, cfg, artifacts=["chart"])
+    blocks_agent.run_section_blocks("Sec", "<p>x</p>", cfg, artifacts=["chart"])
     assert captured["artifacts"] == ["chart"]
 
 
@@ -212,13 +211,13 @@ def test_write_blocks_site_no_ai_skips_agent_even_at_synthesize(tmp_path, monkey
 
 # --- synthesize agent conversion -------------------------------------------
 
-def test_run_page_blocks_converts_and_drops_unknown(monkeypatch):
+def test_run_section_blocks_converts_and_drops_unknown(monkeypatch):
     pytest.importorskip("agno")
     from md2x.site import blocks_agent
 
     class _Resp:
         content = blocks_agent._PageDocModel(blocks=[
-            blocks_agent._BlockM(type="hero", title="T"),
+            blocks_agent._BlockM(type="hero", title="T"),   # filtered per-section
             blocks_agent._BlockM(type="kpi_strip",
                                  items=[blocks_agent._KpiM(value="+20%", label="rev")]),
             blocks_agent._BlockM(type="bogus"),
@@ -233,11 +232,9 @@ def test_run_page_blocks_converts_and_drops_unknown(monkeypatch):
 
     monkeypatch.setattr(blocks_agent, "Agent", _Agent)
     monkeypatch.setattr(blocks_agent, "build_model", lambda ai, role: None)
-    doc = Doc(path=Path("a.md"), title="A", outline=[], fragment_html="<p>x</p>")
     cfg = {"site": {"archetype": "reading", "render_mode": "blocks",
                     "fidelity": "synthesize"},
            "ai": {"model": "x:y", "page_model": None, "retries": 1}}
-    page = blocks_agent.run_page_blocks(doc, cfg)
-    assert isinstance(page.blocks[0], B.Hero)
-    assert any(isinstance(b, B.KpiStrip) for b in page.blocks)
-    assert len(page.blocks) == 2                     # unknown 'bogus' dropped
+    kids = blocks_agent.run_section_blocks("Sec", "<p>x</p>", cfg)
+    assert any(isinstance(b, B.KpiStrip) for b in kids)
+    assert len(kids) == 1                     # hero filtered, 'bogus' dropped

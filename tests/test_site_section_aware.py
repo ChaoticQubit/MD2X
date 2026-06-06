@@ -118,3 +118,52 @@ def test_figures_from_html_extracts_local_diagrams():
 def test_figures_from_html_ignores_remote():
     assert figures_from_html('<img src="https://e/x.png">') == []
     assert figures_from_html('<img src="data:image/png;base64,AAAA">') == []
+
+
+# --- Task 6: section-aware AI synthesis (fake agent, no network) -------------
+
+def test_run_page_blocks_is_section_aware_with_fallback(monkeypatch):
+    import md2x.site.blocks_agent as BA
+    from md2x.site.blocks import Callout
+    frag = ("<h1>Doc</h1><p>intro</p>"
+            "<h2>Alpha</h2><p>aaa</p>"
+            "<h2>Beta</h2><p>bbb</p>"
+            "<h2>Gamma</h2><p>ggg</p>")
+    doc = _doc(frag, title="Doc")
+
+    calls = {}
+    def fake_section(title, section_html, cfg, artifacts=None):
+        calls[title] = section_html
+        if title == "Beta":
+            raise RuntimeError("model died")          # force verbatim fallback
+        return [Callout(text=f"synth {title}")]
+    monkeypatch.setattr(BA, "run_section_blocks", fake_section)
+
+    cfg = {"ai": {"concurrency": 2, "retries": 0},
+           "site": {"archetype": "reading", "render_mode": "hybrid",
+                    "fidelity": "synthesize"}}
+    page = BA.run_page_blocks(doc, cfg)
+
+    secs = {s.title: s for s in page.blocks if isinstance(s, Section)}
+    assert set(secs) == {"Alpha", "Beta", "Gamma"}    # nothing vanished
+    assert isinstance(page.blocks[0], Hero)
+    # Beta fell back to verbatim Prose carrying its body:
+    assert any(isinstance(b, Prose) and "bbb" in b.html for b in secs["Beta"].blocks)
+    # Alpha was synthesized:
+    assert any(isinstance(b, Callout) for b in secs["Alpha"].blocks)
+    # each section saw its OWN full html — never a slice of the whole doc:
+    assert "aaa" in calls["Alpha"] and "ggg" in calls["Gamma"]
+    assert "bbb" not in calls.get("Alpha", "")
+
+
+def test_run_page_blocks_no_h2_uses_deterministic(monkeypatch):
+    import md2x.site.blocks_agent as BA
+    doc = _doc("<h1>D</h1><p>just prose, no headings</p>", title="D")
+    # run_section_blocks must never be called when there are no H2s
+    monkeypatch.setattr(BA, "run_section_blocks",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("called")))
+    cfg = {"ai": {"concurrency": 2, "retries": 0},
+           "site": {"archetype": "reading", "render_mode": "blocks",
+                    "fidelity": "synthesize"}}
+    page = BA.run_page_blocks(doc, cfg)
+    assert any(isinstance(b, Prose) and "just prose" in b.html for b in page.blocks)

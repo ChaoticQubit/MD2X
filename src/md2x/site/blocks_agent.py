@@ -10,26 +10,32 @@ blocks_render so `--no-ai` / non-synthesize paths never need the [ai] extra.
 """
 from __future__ import annotations
 
+import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from pydantic import BaseModel, Field
 from agno.agent import Agent
 
 from ..log import get_logger
 from .blocks import (
-    Artifact, Callout, Card, CardGrid, Code, Event, Export, Glossary, Hero, Kpi,
-    KpiStrip, PageDoc, Prose, Quote, Step, Steps, Summary, Tab, Table, Tabs,
-    Term, Timeline, build_page_doc,
+    Artifact, Callout, Card, CardGrid, Code, Event, Export, Figure, Glossary,
+    Hero, Kpi, KpiStrip, PageDoc, Prose, Quote, Section, Step, Steps, Summary,
+    Tab, Table, Tabs, Term, Timeline, build_page_doc, figures_from_html,
 )
 from .guardrails import build_pre_hooks
 from .models import build_model
+from .report.blocks import split_sections
 from .sanitize import sanitize_artifact_html
+from .schemas import slugify
 from .skill import load_skill
 
 log = get_logger(__name__)
 
 _MAX_BLOCKS = 24
 _MAX_ITEMS = 12
+_MAX_SECTION_BLOCKS = 12
+_H1_RE = re.compile(r"(?is)<h1\b[^>]*>.*?</h1>")
 
 _SYSTEM = (
     "You restructure a Markdown document into a typed block tree for a polished, "
@@ -160,47 +166,89 @@ def _to_block(m: _BlockM):
     return None
 
 
-def run_page_blocks(doc, cfg: dict, artifacts=None) -> PageDoc:
-    """Author a PageDoc with the LLM. Falls back to deterministic if empty.
-
-    `artifacts` is the architect's per-page artifact selection; it is injected
-    into the skill so the agent sees exactly those pattern templates.
-    """
-    ai = cfg["ai"]
-    site = cfg["site"]
+def _build_agent(cfg: dict, artifacts=None) -> Agent:
+    """One block-authoring agent, reused across a doc's sections."""
+    ai, site = cfg["ai"], cfg["site"]
     skill = load_skill(site["archetype"], site.get("render_mode", "blocks"),
                        site.get("fidelity", "synthesize"), artifacts=artifacts)
     instr = (skill + "\n\n---\n\n" if skill else "") + _SYSTEM
-    agent = Agent(
+    return Agent(
         model=build_model(ai, role="page"),
         instructions=instr,
         output_schema=_PageDocModel,
         retries=ai.get("retries", 2),
         pre_hooks=build_pre_hooks(cfg),
     )
-    body = doc.fragment_html[:8000]
-    prompt = (f"Document title: {doc.title}\nSection headings: {doc.outline}\n\n"
-              f"Document body (HTML):\n{body}")
-    log.info("blocks agent: authoring %s (%d body chars)",
-             doc.slug, len(doc.fragment_html))
-    log.debug("blocks %s prompt (%d chars):\n%s", doc.slug, len(prompt), prompt)
+
+
+def run_section_blocks(title: str, section_html: str, cfg: dict,
+                       artifacts=None) -> list:
+    """Restructure ONE section into blocks from its FULL html.
+
+    Sections are small, so nothing is truncated and the model can focus on the
+    real shape of that one section. Returns the section's child blocks (no hero,
+    no page title — the page owns those).
+    """
+    agent = _build_agent(cfg, artifacts)
+    prompt = (
+        f"Section heading: {title}\n\n"
+        "Restructure ONLY the section below into typed blocks. Do NOT emit a "
+        "hero or repeat the section heading (the page renders it). Render the "
+        "information in the shape it has — KPI strips for metrics, tables for "
+        "tabular data, steps for procedures, timelines for chronology.\n\n"
+        f"Section body (HTML):\n{section_html}"
+    )
     t0 = time.perf_counter()
     resp = agent.run(prompt)
-    log.debug("blocks %s: responded in %.2fs", doc.slug, time.perf_counter() - t0)
-    log.debug("blocks %s raw response: %r", doc.slug, resp.content)
-    metrics = getattr(resp, "metrics", None)
-    if metrics is not None:
-        log.debug("blocks %s token usage: %s", doc.slug, metrics)
-
+    log.debug("blocks section %r: responded in %.2fs", title,
+              time.perf_counter() - t0)
     model: _PageDocModel = resp.content
-    blocks = [b for b in (_to_block(m) for m in model.blocks[:_MAX_BLOCKS])
-              if b is not None]
-    if not blocks:
-        log.warning("blocks agent: %s produced no blocks; deterministic fallback",
-                    doc.slug)
+    return [b for b in (_to_block(m) for m in model.blocks[:_MAX_SECTION_BLOCKS])
+            if b is not None and not isinstance(b, Hero)]
+
+
+def run_page_blocks(doc, cfg: dict, artifacts=None) -> PageDoc:
+    """Author a PageDoc by enriching each H2 section independently and in
+    parallel. Any section whose agent fails or returns nothing falls back to its
+    verbatim HTML, so a document can never be amputated — worst case is the
+    complete deterministic render.
+
+    `artifacts` is the architect's per-page artifact selection, injected into the
+    skill so each section's agent sees exactly those pattern templates.
+    """
+    intro_html, sections = split_sections(doc.fragment_html)
+    intro_html = _H1_RE.sub("", intro_html).strip()
+    if not sections:                              # no H2 → deterministic whole-doc
+        log.info("blocks agent: %s has no H2 sections; deterministic page", doc.slug)
         return build_page_doc(doc)
-    # Guarantee a hero leads the page.
-    if not blocks or not isinstance(blocks[0], Hero):
-        blocks.insert(0, Hero(title=doc.title))
-    log.info("blocks agent: %s -> %d block(s)", doc.slug, len(blocks))
+
+    log.info("blocks agent: %s -> %d section(s), enriching (concurrency=%s)",
+             doc.slug, len(sections), cfg["ai"].get("concurrency", 4))
+
+    def enrich(sec) -> Section:
+        figs = figures_from_html(sec.html)
+        try:
+            kids = run_section_blocks(sec.title, sec.html, cfg, artifacts)
+        except Exception as e:                    # one bad section never sinks the doc
+            log.warning("blocks agent: section %r failed (%s); verbatim fallback",
+                        sec.title, e)
+            log.debug("blocks section %r failure", sec.title, exc_info=True)
+            kids = []
+        if not kids:                              # empty synth → keep author's HTML
+            kids = [Prose(html=sec.html)] if sec.html else []
+        else:
+            kids.extend(figs)                     # land the section's rendered diagrams
+        anchor = slugify(sec.title) if sec.title else f"section-{id(sec) & 0xffff}"
+        return Section(title=sec.title, anchor=anchor, blocks=kids)
+
+    workers = max(1, int(cfg["ai"].get("concurrency", 4) or 1))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        section_blocks = list(ex.map(enrich, sections))
+
+    blocks: list = [Hero(title=doc.title)]
+    if intro_html:
+        blocks.append(Prose(html=intro_html))
+    blocks.extend(section_blocks)
+    log.info("blocks agent: %s assembled hero + %s intro + %d section(s)",
+             doc.slug, "1" if intro_html else "0", len(section_blocks))
     return PageDoc(slug=doc.slug, title=doc.title, blocks=blocks)
