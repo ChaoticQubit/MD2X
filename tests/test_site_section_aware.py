@@ -167,3 +167,39 @@ def test_run_page_blocks_no_h2_uses_deterministic(monkeypatch):
                     "fidelity": "synthesize"}}
     page = BA.run_page_blocks(doc, cfg)
     assert any(isinstance(b, Prose) and "just prose" in b.html for b in page.blocks)
+
+
+# --- Task 7: section-aware full mode ----------------------------------------
+
+def test_full_page_is_section_aware(monkeypatch):
+    import md2x.site.full_agent as FA
+    frag = "<h1>D</h1><p>i</p><h2>Alpha</h2><p>aaa</p><h2>Beta</h2><p>bbb</p>"
+    doc = _doc(frag, title="D")
+    seen = {}
+    def fake(title, section_html, cfg, artifacts=None):
+        seen[title] = section_html
+        return f"<div>S:{title}</div>"
+    monkeypatch.setattr(FA, "run_full_section", fake)
+    cfg = {"ai": {"concurrency": 2, "retries": 0},
+           "site": {"archetype": "reading", "render_mode": "full",
+                    "fidelity": "synthesize"}}
+    fp = FA.run_full_page(doc, cfg)
+    assert "S:Alpha" in fp.html and "S:Beta" in fp.html      # both authored
+    assert 'id="alpha"' in fp.html and 'id="beta"' in fp.html  # anchored
+    assert "aaa" in seen["Alpha"] and "bbb" in seen["Beta"]    # full section html
+
+
+def test_full_page_section_fallback_to_verbatim(monkeypatch):
+    import md2x.site.full_agent as FA
+    doc = _doc("<h1>D</h1><h2>Alpha</h2><p>aaa</p><h2>Beta</h2><p>bbb</p>", title="D")
+    def fake(title, section_html, cfg, artifacts=None):
+        if title == "Beta":
+            raise RuntimeError("died")
+        return f"<div>S:{title}</div>"
+    monkeypatch.setattr(FA, "run_full_section", fake)
+    cfg = {"ai": {"concurrency": 2, "retries": 0},
+           "site": {"archetype": "reading", "render_mode": "full",
+                    "fidelity": "synthesize"}}
+    fp = FA.run_full_page(doc, cfg)
+    assert "S:Alpha" in fp.html       # synthesized
+    assert "bbb" in fp.html           # Beta fell back to verbatim — not vanished
