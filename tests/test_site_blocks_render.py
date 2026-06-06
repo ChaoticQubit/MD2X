@@ -179,7 +179,7 @@ def test_write_blocks_site_emits_pages(tmp_path):
     enh = {"intro": PageEnhancement(tldr="Quick summary."),
            "guide": PageEnhancement()}
     out = tmp_path / "out"
-    br.write_blocks_site(out, docs, plan, enh, cfg)
+    br.write_blocks_site(out, docs, plan, enh, cfg, use_ai=False)
     assert (out / "index.html").exists()
     assert (out / "design-system.html").exists()
     intro = (out / "intro.html").read_text()
@@ -188,6 +188,26 @@ def test_write_blocks_site_emits_pages(tmp_path):
     assert "Quick summary." in intro                # enhancement above blocks
     assert "Guide" in intro                          # sidebar nav
     assert "http://" not in intro and "https://" not in intro
+
+
+def test_write_blocks_site_no_ai_skips_agent_even_at_synthesize(tmp_path, monkeypatch):
+    """--no-ai must stay fully deterministic, even when fidelity=synthesize."""
+    from md2x.site import blocks_agent
+
+    def _boom(*a, **k):
+        raise AssertionError("the block agent must not run under --no-ai")
+
+    monkeypatch.setattr(blocks_agent, "run_page_blocks", _boom)
+    cfg = _cfg()
+    cfg["site"]["fidelity"] = "synthesize"
+    cfg["site"]["render_mode"] = "hybrid"
+    docs = [Doc(path=tmp_path / "a.md", title="A", outline=[],
+                fragment_html="<p>Body kept.</p>")]
+    plan = SitePlan(nav=[NavItem(title="A", slug="a")], order=["a"])
+    out = tmp_path / "out"
+    br.write_blocks_site(out, docs, plan, {"a": PageEnhancement()}, cfg,
+                         use_ai=False)
+    assert "Body kept." in (out / "a.html").read_text()
 
 
 # --- synthesize agent conversion -------------------------------------------

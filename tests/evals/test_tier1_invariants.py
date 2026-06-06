@@ -70,7 +70,7 @@ def test_blocks_mode_invariants(tmp_path):
     plan = default_site_plan(docs, cfg)
     enh = {d.slug: PageEnhancement() for d in docs}
     out = tmp_path / "blocks"
-    write_blocks_site(out, docs, plan, enh, cfg)
+    write_blocks_site(out, docs, plan, enh, cfg, use_ai=False)
     _assert_common(out, docs)
     _assert_links_resolve(out)
     for page in _pages(out):

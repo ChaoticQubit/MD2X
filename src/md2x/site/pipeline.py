@@ -108,7 +108,7 @@ def generate_site(inputs: list[Path], out_dir: Path, cfg: dict, *,
             # hybrid = typed-block pages; the synthesize agent may also emit sandboxed
             # `artifact` blocks (mounted as CSP-locked iframes by the renderer).
             from .blocks_render import write_blocks_site
-            write_blocks_site(out_dir, docs, plan, enh, cfg)
+            write_blocks_site(out_dir, docs, plan, enh, cfg, use_ai=use_ai)
         else:
             write_site(out_dir, docs, plan, enh, cfg, layout=layout)
     log.info("wrote site to %s", out_dir)

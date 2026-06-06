@@ -70,7 +70,7 @@ def test_generate_site_normalizes_bad_render_mode(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "build_doc", lambda p, c: schemas.Doc(
         path=p, title="A", outline=[], fragment_html="<p>a</p>"))
 
-    def fake_write_blocks(out_dir, docs, plan, enh, cfg):
+    def fake_write_blocks(out_dir, docs, plan, enh, cfg, **_):
         seen["render_mode"] = cfg["site"]["render_mode"]
 
     monkeypatch.setattr(br, "write_blocks_site", fake_write_blocks)

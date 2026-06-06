@@ -12,7 +12,7 @@ def test_blocks_mode_routes_to_write_blocks_site(tmp_path, monkeypatch):
     seen = {}
     monkeypatch.setattr(pipeline, "build_doc", _doc)
 
-    def fake_write_blocks(out_dir, docs, plan, enh, cfg):
+    def fake_write_blocks(out_dir, docs, plan, enh, cfg, **_):
         seen["blocks"] = True
         seen["text"] = docs[0].fragment_html
 

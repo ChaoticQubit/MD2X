@@ -395,10 +395,11 @@ def _blocks_page_html(title: str, accent: str, ds_css: str, body: str) -> str:
     )
 
 
-def _page_doc_for(doc, cfg: dict, plan: SitePlan) -> PageDoc:
+def _page_doc_for(doc, cfg: dict, plan: SitePlan, use_ai: bool) -> PageDoc:
     """AI block tree at synthesize (with the architect's per-page artifacts),
-    else the deterministic builder."""
-    if cfg["site"].get("fidelity") == "synthesize":
+    else the deterministic builder. The agent runs only when AI is enabled —
+    `--no-ai` is always deterministic, regardless of fidelity."""
+    if use_ai and cfg["site"].get("fidelity") == "synthesize":
         try:
             from .blocks_agent import run_page_blocks   # lazy: needs agno
             return run_page_blocks(doc, cfg,
@@ -410,11 +411,12 @@ def _page_doc_for(doc, cfg: dict, plan: SitePlan) -> PageDoc:
     return build_page_doc(doc)
 
 
-def _render_doc_page(doc, plan: SitePlan, enh: PageEnhancement, cfg: dict) -> str:
+def _render_doc_page(doc, plan: SitePlan, enh: PageEnhancement, cfg: dict,
+                     use_ai: bool) -> str:
     accent = _accent(cfg, plan)
     ds_css = design_css_vars(_design_for(plan, accent))
     nav = _nav_html(plan, doc.slug, single_page=False)
-    page = _page_doc_for(doc, cfg, plan)
+    page = _page_doc_for(doc, cfg, plan, use_ai)
     enh_html = _enhancement_html(enh, plan, single_page=False)
     main = (f'<main id="{_e(doc.slug)}">{enh_html}'
             f"{render_blocks(page.blocks, ds_css=ds_css)}</main>")
@@ -439,15 +441,16 @@ def _render_index(plan: SitePlan, cfg: dict) -> str:
 
 
 def write_blocks_site(out_dir: Path, docs, plan: SitePlan,
-                      enh: dict, cfg: dict) -> None:
+                      enh: dict, cfg: dict, *, use_ai: bool) -> None:
     """Write a typed-block site: one page per doc + index + design-system page."""
     out_dir.mkdir(parents=True, exist_ok=True)
     accent = _accent(cfg, plan)
-    log.info("blocks site: %d doc(s), fidelity=%s, accent=%s",
-             len(docs), cfg["site"].get("fidelity"), accent)
+    log.info("blocks site: %d doc(s), ai=%s, fidelity=%s, accent=%s",
+             len(docs), "on" if use_ai else "off",
+             cfg["site"].get("fidelity"), accent)
     for doc in docs:
         page_html = _render_doc_page(doc, plan, enh.get(doc.slug, PageEnhancement()),
-                                     cfg)
+                                     cfg, use_ai)
         (out_dir / f"{doc.slug}.html").write_text(page_html, encoding="utf-8")
         log.debug("wrote blocks page %s.html", doc.slug)
     (out_dir / "index.html").write_text(_render_index(plan, cfg), encoding="utf-8")
