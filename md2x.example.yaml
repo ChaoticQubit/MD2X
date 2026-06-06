@@ -1,0 +1,63 @@
+# md2x.example.yaml — a commented example config for `md2x site`.
+#
+# Copy the keys you want into your own `md2x.yaml` (next to your Markdown, or at
+# the project root). Everything here shows the built-in default, so an empty
+# md2x.yaml behaves exactly like this file. Only the `site:` and `ai:` blocks are
+# shown; see the README for the document-conversion keys (output/page/fonts/...).
+
+site:
+  # The site title (index heading). null -> "Documentation".
+  title: null
+
+  # ── The three orthogonal axes ─────────────────────────────────────────────
+  # archetype × render_mode × fidelity fully describe a living site.
+
+  # archetype — WHAT kind of site. One of:
+  #   reading presentation flyer product   (narrative)
+  #   docs review plan explainer           (technical)
+  #   report editor design                 (data / ops)
+  #   custom                               (style_prompt drives everything)
+  archetype: reading
+
+  # render_mode — HOW the HTML is produced (safety ladder: blocks ⊂ hybrid ⊂ full):
+  #   blocks  typed block tree only; md2x owns every tag (safest, most testable).
+  #   hybrid  blocks PLUS sandboxed, CSP-locked `artifact` iframes for real
+  #           interactivity (drag/drop, sliders, editors). DEFAULT.
+  #   full    one standalone, self-contained interactive HTML document per page,
+  #           CSP-locked (no external network). Max fidelity.
+  render_mode: hybrid
+
+  # fidelity — how much the AI may rewrite prose:
+  #   preserve       body is verbatim; AI only plans nav/design.
+  #   light-enhance  verbatim body + additive aids (TL;DR, takeaways, related).
+  #   synthesize     AI restructures content into the richer shapes. DEFAULT.
+  fidelity: synthesize
+
+  # auto -> the archetype's natural layout (multi-page | single-page).
+  layout: auto
+
+  # Free-text nudge for the look/voice (especially with archetype: custom).
+  style_prompt: ""
+
+  theme:
+    accent: "#2563eb"   # any safe CSS colour; seeds the --ds-accent token
+    dark_mode: true
+
+  features: [search, animations, smooth-scroll]
+  recursive: true       # recurse into subdirectories when given a folder
+
+ai:
+  # Provider-agnostic model string "<provider>:<model>" (anthropic / openai / groq / ...).
+  model: "anthropic:claude-sonnet-4-6"
+  architect_model: null   # override the architect's model (null = use `model`)
+  page_model: null        # override the per-page model (null = use `model`)
+  temperature: 0.4
+  max_tokens: null
+  concurrency: 4          # parallel per-page agent calls
+  retries: 2              # agno retries on invalid structured output
+
+  # Input guardrails (agno pre_hooks), provider-agnostic.
+  guardrails:
+    prompt_injection: true   # default-on: a hostile doc can't hijack the agent
+    pii: false               # opt-in PII detection
+    moderation: false        # opt-in OpenAI moderation (needs OPENAI_API_KEY)

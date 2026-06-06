@@ -80,9 +80,10 @@ DEFAULTS: dict[str, Any] = {
     "site": {
         "title": None,               # site/index title; None -> "Documentation"
         "layout": "auto",            # auto | multi-page | single-page
-        "archetype": "reading",      # reading|presentation|flyer|product|docs|report|custom
+        "archetype": "reading",      # reading|presentation|flyer|product|docs|review|plan|explainer|report|editor|design|custom
+        "render_mode": "hybrid",     # blocks | hybrid | full  (dynamic-by-default)
         "style_prompt": "",
-        "fidelity": "light-enhance", # preserve | light-enhance
+        "fidelity": "synthesize",    # preserve | light-enhance | synthesize
         "theme": {"accent": "#2563eb", "dark_mode": True},
         "features": ["search", "animations", "smooth-scroll"],
         "recursive": True,
@@ -98,6 +99,13 @@ DEFAULTS: dict[str, Any] = {
         "max_tokens": None,       # cap on tokens per reply (null = provider default)
         "concurrency": 4,         # parallel per-page agent calls
         "retries": 2,             # agno retries on invalid structured output
+        "guardrails": {
+            # Input guardrails (agno pre_hooks). prompt_injection default-on so a
+            # hostile doc can't hijack the agent; pii/moderation opt-in.
+            "prompt_injection": True,
+            "pii": False,
+            "moderation": False,  # OpenAI moderation; needs OPENAI_API_KEY
+        },
     },
     "deploy": {
         "provider": "vercel",

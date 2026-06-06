@@ -37,6 +37,25 @@ class NavItem:
 
 
 @dataclass
+class DesignSystem:
+    """Design DNA → CSS custom properties (--ds-*). Consumed by every shell and
+    (later) every artifact iframe, so even free-form output stays on-brand.
+    Raw strings here; sanitized at render time (single trust boundary)."""
+    accent: str = "#2563eb"
+    bg: str = "#ffffff"
+    fg: str = "#1f2328"
+    muted: str = "#57606a"
+    card: str = "#f6f8fa"
+    border: str = "#d0d7de"
+    radius: str = "8px"
+    font_sans: str = ('-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,'
+                      'Arial,sans-serif')
+    font_mono: str = ('ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,'
+                      'monospace')
+    density: str = "comfortable"           # comfortable | compact
+
+
+@dataclass
 class SitePlan:
     """The architect's plan for the whole site."""
     nav: list[NavItem]
@@ -44,6 +63,10 @@ class SitePlan:
     index_title: str = "Documentation"
     index_intro: str = ""
     theme_accent: str = ""                 # "" = use config theme.accent
+    design: DesignSystem = field(default_factory=DesignSystem)
+    # Architect per-page selection (PR-F): slug -> chosen artifact ids / render mode.
+    page_artifacts: dict[str, list[str]] = field(default_factory=dict)
+    page_modes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

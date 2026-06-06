@@ -16,9 +16,11 @@ from pydantic import BaseModel, Field
 from agno.agent import Agent
 
 from ..log import get_logger
-from .archetypes import get_archetype, resolve_layout
+from .archetypes import get_archetype, get_suggested_artifacts, resolve_layout
+from .guardrails import build_pre_hooks
 from .models import build_model
-from .schemas import Doc, NavItem, SitePlan, PageEnhancement
+from .schemas import Doc, NavItem, SitePlan, PageEnhancement, DesignSystem
+from .skill import load_skill
 
 log = get_logger(__name__)
 
@@ -36,6 +38,25 @@ class _NavItemModel(BaseModel):
     title: str
     slug: str
     group: str = ""
+    # Architect per-page selection (PR-F).
+    render_mode: str = Field(default="", description="blocks|hybrid|full override "
+                             "for this page, or empty to use the site default.")
+    artifacts: list[str] = Field(default_factory=list,
+                                 description="Artifact pattern ids to use on this page.")
+
+
+class _DesignSystemModel(BaseModel):
+    accent: str = "#2563eb"
+    bg: str = "#ffffff"
+    fg: str = "#1f2328"
+    muted: str = "#57606a"
+    card: str = "#f6f8fa"
+    border: str = "#d0d7de"
+    radius: str = "8px"
+    font_sans: str = Field(default=DesignSystem().font_sans)
+    font_mono: str = Field(default=DesignSystem().font_mono)
+    density: str = Field(default="comfortable",
+                         description="comfortable | compact")
 
 
 class _SitePlanModel(BaseModel):
@@ -44,6 +65,7 @@ class _SitePlanModel(BaseModel):
     index_title: str = "Documentation"
     index_intro: str = ""
     theme_accent: str = ""
+    design: _DesignSystemModel = Field(default_factory=_DesignSystemModel)
 
 
 class _EnhancementModel(BaseModel):
@@ -56,12 +78,23 @@ class _EnhancementModel(BaseModel):
 # ---- converters ------------------------------------------------------------
 
 def _to_site_plan(pm: _SitePlanModel) -> SitePlan:
+    d = pm.design
+    design = DesignSystem(
+        accent=d.accent, bg=d.bg, fg=d.fg, muted=d.muted, card=d.card,
+        border=d.border, radius=d.radius, font_sans=d.font_sans,
+        font_mono=d.font_mono, density=d.density,
+    )
+    page_artifacts = {n.slug: list(n.artifacts) for n in pm.nav if n.artifacts}
+    page_modes = {n.slug: n.render_mode.strip() for n in pm.nav if n.render_mode.strip()}
     return SitePlan(
         nav=[NavItem(title=n.title, slug=n.slug, group=n.group) for n in pm.nav],
         order=list(pm.order),
         index_title=pm.index_title or "Documentation",
         index_intro=pm.index_intro,
         theme_accent=pm.theme_accent,
+        design=design,
+        page_artifacts=page_artifacts,
+        page_modes=page_modes,
     )
 
 
@@ -83,6 +116,7 @@ def _make_agent(cfg: dict, role: str, instructions: str, schema):
         instructions=instructions,
         output_schema=schema,
         retries=retries,
+        pre_hooks=build_pre_hooks(cfg),
     )
 
 
@@ -100,11 +134,20 @@ def run_architect(docs: list[Doc], cfg: dict) -> SitePlan:
     site = cfg["site"]
     arch = get_archetype(site["archetype"])
     layout = resolve_layout(site["layout"], site["archetype"])
+    skill = load_skill(site["archetype"],
+                       site.get("render_mode", "blocks"),
+                       site.get("fidelity", "light-enhance"))
     instr = (
-        arch["architect_instructions"]
+        (skill + "\n\n---\n\n" if skill else "")
+        + arch["architect_instructions"]
         + (f"\n\nUser style brief: {site['style_prompt']}"
            if site.get("style_prompt") else "")
         + f"\n\nTarget layout: {layout}."
+        + "\n\nAlso emit a DesignSystem (palette + radius + density) that fits the "
+          "content and style brief; it becomes the site's --ds-* design tokens."
+        + "\n\nFor each page you may set render_mode (blocks|hybrid|full) and pick "
+          "the artifact patterns that fit it, drawn from this archetype's suggested "
+          f"set: {get_suggested_artifacts(site['archetype']) or 'none'}."
         + "\n\nUse exactly the given slugs. Output a complete SitePlan."
     )
     agent = _make_agent(cfg, "architect", instr, _SitePlanModel)
@@ -129,8 +172,12 @@ def run_page(doc: Doc, plan: SitePlan, cfg: dict) -> PageEnhancement:
     arch = get_archetype(cfg["site"]["archetype"])
     other = ", ".join(f"{n.slug} ({n.title})" for n in plan.nav
                       if n.slug != doc.slug) or "(none)"
+    skill = load_skill(cfg["site"]["archetype"],
+                       cfg["site"].get("render_mode", "blocks"),
+                       cfg["site"].get("fidelity", "light-enhance"))
     instr = (
-        arch["page_instructions"]
+        (skill + "\n\n---\n\n" if skill else "")
+        + arch["page_instructions"]
         + "\n\nProduce ONLY additive aids: a one-sentence TL;DR, up to 4 key "
           "takeaways, and slugs of related pages. Do NOT rewrite or quote the "
           "body. Leave fields empty if nothing adds value."

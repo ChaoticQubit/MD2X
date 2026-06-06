@@ -188,6 +188,33 @@ def test_text_fields_are_escaped():
     assert "<p>body</p>" in h  # fragment stays raw
 
 
+def test_ds_vars_present_in_page():
+    cfg = _cfg()
+    plan = render.default_site_plan(_docs(), cfg)
+    h = render.build_page(_docs()[0], plan, PageEnhancement(), cfg,
+                          assets_inline=True)
+    assert "--ds-accent" in h and "--ds-bg" in h
+
+
+def test_custom_designsystem_bg_flows_into_output():
+    from md2x.site.schemas import DesignSystem
+    cfg = _cfg()
+    plan = render.default_site_plan(_docs(), cfg)
+    plan.design = DesignSystem(bg="#101010")
+    h = render.build_page(_docs()[0], plan, PageEnhancement(), cfg,
+                          assets_inline=True)
+    assert "#101010" in h
+
+
+def test_write_site_multipage_emits_design_system_page(tmp_path):
+    cfg = _cfg()
+    docs = _docs()
+    plan = render.default_site_plan(docs, cfg)
+    enh = {d.slug: PageEnhancement() for d in docs}
+    render.write_site(tmp_path, docs, plan, enh, cfg, layout="multi-page")
+    assert (tmp_path / "design-system.html").exists()
+
+
 def test_default_site_plan_uses_configured_title():
     cfg = _cfg()
     cfg["site"]["title"] = "My Handbook"

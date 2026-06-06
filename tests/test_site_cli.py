@@ -36,7 +36,8 @@ from md2x.site.cli import _apply_site_overrides
 
 
 def _site_args(**kw):
-    base = dict(archetype=None, layout=None, style=None, fidelity=None, model=None)
+    base = dict(archetype=None, render_mode=None, layout=None, style=None,
+                fidelity=None, model=None)
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -58,3 +59,18 @@ def test_apply_site_overrides_noops_when_none():
     _apply_site_overrides(cfg, _site_args())
     assert cfg["site"]["archetype"] == "reading"      # default preserved
     assert cfg["ai"]["model"] == "anthropic:claude-sonnet-4-6"
+
+
+def test_apply_site_overrides_render_mode_and_synthesize():
+    cfg = config.deep_merge(config.DEFAULTS, {})
+    _apply_site_overrides(cfg, _site_args(render_mode="full", fidelity="synthesize"))
+    assert cfg["site"]["render_mode"] == "full"
+    assert cfg["site"]["fidelity"] == "synthesize"
+
+
+def test_parser_accepts_render_mode_and_synthesize():
+    parser = build_parser()
+    args = parser.parse_args(["site", "docs/", "--render-mode", "hybrid",
+                              "--fidelity", "synthesize"])
+    assert args.render_mode == "hybrid"
+    assert args.fidelity == "synthesize"

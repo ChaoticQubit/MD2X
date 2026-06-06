@@ -6,7 +6,8 @@ from pathlib import Path
 
 from ..config import load_config
 from ..log import get_logger
-from .archetypes import resolve_layout
+from .archetypes import ARCHETYPE_NAMES, resolve_layout
+from .modes import FIDELITIES, RENDER_MODES
 from .pipeline import generate_site
 
 log = get_logger(__name__)
@@ -19,14 +20,14 @@ def add_site_subparser(sub, parents=()) -> None:
                     help="Markdown files and/or directories")
     sp.add_argument("-o", "--out-dir", type=Path, default=Path("site"),
                     help="Output directory (default: ./site)")
-    sp.add_argument("--archetype", default=None,
-                    choices=["reading", "presentation", "flyer", "product",
-                             "docs", "report", "custom"])
+    sp.add_argument("--archetype", default=None, choices=list(ARCHETYPE_NAMES))
+    sp.add_argument("--render-mode", default=None, choices=list(RENDER_MODES),
+                    help="How HTML is produced: blocks | hybrid | full")
     sp.add_argument("--layout", default=None,
                     choices=["auto", "multi-page", "single-page"])
     sp.add_argument("--style", default=None, help="Free-text style nudge")
-    sp.add_argument("--fidelity", default=None,
-                    choices=["preserve", "light-enhance"])
+    sp.add_argument("--fidelity", default=None, choices=list(FIDELITIES),
+                    help="How much the AI may rewrite prose")
     sp.add_argument("--model", default=None, help="Override ai.model")
     sp.add_argument("--no-ai", action="store_true",
                     help="Deterministic templates; no LLM/network")
@@ -40,6 +41,8 @@ def add_site_subparser(sub, parents=()) -> None:
 def _apply_site_overrides(cfg: dict, args) -> None:
     if args.archetype is not None:
         cfg["site"]["archetype"] = args.archetype
+    if args.render_mode is not None:
+        cfg["site"]["render_mode"] = args.render_mode
     if args.layout is not None:
         cfg["site"]["layout"] = args.layout
     if args.style is not None:

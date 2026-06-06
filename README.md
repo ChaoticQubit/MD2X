@@ -76,20 +76,71 @@ md2x --check                      # show which binaries were found
 
 Format is taken from `--to`, else inferred from the `-o` extension, else PDF. Page/font/color settings apply to PDF only.
 
-## AI reading-site (`md2x site`)
+## AI living-site (`md2x site`)
 
-Turn a folder of Markdown into a polished, navigable website — multi-page by
-default, single-page optional — with one-click deploy to Vercel.
+Turn a folder of Markdown into a **living, interactive website** — not the prose
+re-rendered with chrome, but each piece of information in the shape it actually
+has: KPI strips, timelines, clickable diagrams, live editors that export back to
+Markdown. Inspired by Thariq Shihipar's
+"[The unreasonable effectiveness of HTML](https://thariqs.github.io/html-effectiveness/)".
+One-click deploy to Vercel.
 
 ```bash
 pip install 'md2x[ai]'           # agno + every provider SDK (works out of the box)
 export ANTHROPIC_API_KEY=sk-...  # or any provider's key (see below)
 
-md2x site docs/                  # generates ./site
-md2x site docs/ --archetype flyer --layout single-page
-md2x site docs/ --no-ai          # deterministic, no LLM/network
-md2x site docs/ --deploy vercel  # needs VERCEL_TOKEN
+md2x site docs/                          # hybrid + synthesize (dynamic by default)
+md2x site docs/ --archetype explainer    # pick a taxonomy
+md2x site docs/ --render-mode full       # standalone author pages
+md2x site docs/ --fidelity preserve      # body verbatim, no rewriting
+md2x site docs/ --no-ai                  # deterministic, no LLM/network
+md2x site docs/ --deploy vercel          # needs VERCEL_TOKEN
 ```
+
+### Three orthogonal axes
+
+A site is fully described by `archetype × render_mode × fidelity` (set in
+`md2x.yaml` or via flags). See [`md2x.example.yaml`](./md2x.example.yaml) for a
+commented config.
+
+- **archetype** — *what kind of site* (12, on Thariq's taxonomy):
+
+  | Group | Archetypes |
+  |---|---|
+  | Narrative | `reading` · `presentation` · `flyer` · `product` |
+  | Technical | `docs` · `review` · `plan` · `explainer` |
+  | Data / ops | `report` · `editor` · `design` |
+  | Escape | `custom` (driven entirely by `site.style_prompt`) |
+
+- **render_mode** — *how HTML is produced* (safety ladder `blocks ⊂ hybrid ⊂ full`):
+  - `blocks` — a typed block tree; md2x owns every tag (safest, fully testable).
+  - `hybrid` *(default)* — blocks plus interactive **artifacts** mounted in
+    sandboxed, CSP-locked `<iframe>`s (no external network, can't touch the host).
+  - `full` — one standalone, self-contained interactive HTML document per page,
+    CSP-locked.
+
+- **fidelity** — *how much the AI may rewrite prose*: `preserve` ·
+  `light-enhance` · `synthesize` *(default)*.
+
+### Interactive artifacts
+
+In `hybrid`/`full`, the architect drops reusable widgets into the pages that need
+them — `triage-board`, `prompt-tuner`, `feature-flags`, `flowchart`,
+`module-map`, `annotated-diff`, `live-demo`, `deck`, `animation-sandbox`,
+`clickable-flow`, `svg-figure`, `comparison`, `chart`. Every editor ends in an
+**export button** that round-trips its state back to Markdown/JSON (a
+`postMessage` contract). All output is self-contained and consumes a shared
+`--ds-*` design-token system, so it deploys as static files and stays on-brand.
+
+### Safety & evals
+
+- **Guardrails (every run):** an agno prompt-injection guardrail is default-on,
+  so a hostile document can't hijack the agent (PII/moderation are opt-in via
+  `ai.guardrails`); all AI-authored HTML is sanitized and CSP-locked with no
+  external network.
+- **Evals:** deterministic structural invariants run in CI (`tests/evals/`);
+  an opt-in LLM-as-judge (the Thariq rubric) plus performance evals live in
+  [`evals/`](./evals/) (run with `MD2X_RUN_EVALS=1`).
 
 **Model & provider agnostic.** Set `ai.model` in `md2x.yaml`:
 `"anthropic:claude-sonnet-4-6"`, `"openai:gpt-4o"`, `"groq:llama-3.3-70b-versatile"`, … or
@@ -97,13 +148,6 @@ point at any OpenAI-compatible/local endpoint with a `provider: openai-like`
 block (`id` + `base_url` + `api_key_env`). Switching models is one config line —
 `md2x[ai]` bundles the provider SDKs (via `agno[models]`), so any of them works
 with no extra installs; just set the model and its API-key env var.
-
-**Archetypes:** `reading` (default), `presentation`, `flyer`, `product`, `docs`,
-`report`, `custom` (drive it entirely from `site.style_prompt`).
-
-**Fidelity:** `preserve` or `light-enhance` (default). Your prose is always
-emitted verbatim — pandoc renders the body, the AI only builds the design,
-navigation, and additive aids (TL;DR, takeaways, related links).
 
 **Secrets** live in environment variables only; `md2x.yaml` just names them
 (`ai.model` provider keys, `deploy.token_env`). Safe to commit. md2x also
@@ -113,7 +157,7 @@ to `.env` and fill in your key. `.env` is git-ignored.
 
 ## Configuration
 
-Settings resolve in this order (first match wins): `--config` → `md2x.yaml` next to the input → `md2x.yaml` in the project root → built-in defaults. CLI flags override everything. See the annotated [`md2x.yaml`](./md2x.yaml) for every knob.
+Settings resolve in this order (first match wins): `--config` → `md2x.yaml` next to the input → `md2x.yaml` in the project root → built-in defaults. CLI flags override everything. See [`md2x.example.yaml`](./md2x.example.yaml) for an annotated `site:`/`ai:` config.
 
 ### What's configurable
 
@@ -128,6 +172,8 @@ Settings resolve in this order (first match wins): `--config` → `md2x.yaml` ne
 | `mermaid` | `theme`, `background`, `prefer` (mmdc/dot/auto), `on_failure` |
 | `binaries` | explicit absolute paths for pandoc/xelatex/mmdc/dot |
 | `advanced` | `header_includes` (LaTeX preamble lines), `pandoc_extra_args`, `keep_intermediate`, `emit_manifest`, `no_clobber` |
+| `site` | `archetype` (12), `render_mode` (blocks/hybrid/full), `fidelity` (preserve/light-enhance/synthesize), `theme`, `layout`, `style_prompt` |
+| `ai` | `model` (provider-agnostic), `architect_model`, `page_model`, `concurrency`, `retries`, `guardrails` (prompt_injection/pii/moderation) |
 
 ### Per-document overrides
 

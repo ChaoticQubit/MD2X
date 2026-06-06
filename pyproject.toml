@@ -39,6 +39,9 @@ md2x = "md2x.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"md2x.site.skill" = ["*.md", "render-modes/*.md", "archetypes/*.md", "artifacts/*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

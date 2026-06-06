@@ -46,6 +46,7 @@ def test_generate_site_ai_uses_agents(tmp_path, monkeypatch):
     (docs_dir / "intro.md").write_text("# Intro\n\nThe quick brown fox.\n")
     out = tmp_path / "site"
     cfg = _cfg()
+    cfg["site"]["fidelity"] = "light-enhance"  # exercise the enhancement path
 
     from md2x.site import schemas
     monkeypatch.setattr(pipeline, "run_architect",
@@ -60,6 +61,27 @@ def test_generate_site_ai_uses_agents(tmp_path, monkeypatch):
     assert rc == 0
     assert "Summary here." in (out / "intro.html").read_text()
     assert "The quick brown fox." in (out / "intro.html").read_text()
+
+
+def test_generate_site_normalizes_bad_render_mode(tmp_path, monkeypatch):
+    """An invalid render_mode is normalized to the default (blocks) before render."""
+    from md2x.site import schemas
+    import md2x.site.blocks_render as br
+    seen = {}
+    monkeypatch.setattr(pipeline, "build_doc", lambda p, c: schemas.Doc(
+        path=p, title="A", outline=[], fragment_html="<p>a</p>"))
+
+    def fake_write_blocks(out_dir, docs, plan, enh, cfg, **_):
+        seen["render_mode"] = cfg["site"]["render_mode"]
+
+    monkeypatch.setattr(br, "write_blocks_site", fake_write_blocks)
+    md = tmp_path / "a.md"; md.write_text("# A\n\nbody\n")
+    cfg = _cfg()
+    cfg["site"]["render_mode"] = "banana"
+    rc = pipeline.generate_site([md], tmp_path / "out", cfg,
+                                use_ai=False, layout="multi-page")
+    assert rc == 0
+    assert seen["render_mode"] == "blocks"   # normalized -> routed to blocks
 
 
 def test_generate_site_no_md_files_returns_2(tmp_path):
@@ -92,7 +114,9 @@ def test_generate_site_architect_failure_degrades_to_default(tmp_path, monkeypat
     monkeypatch.setattr(pipeline, "run_page",
         lambda doc, plan, c: __import__("md2x.site.schemas", fromlist=["PageEnhancement"]).PageEnhancement())
 
-    rc = pipeline.generate_site([docs_dir], out, _cfg(), use_ai=True,
+    cfg = _cfg()
+    cfg["site"]["fidelity"] = "light-enhance"
+    rc = pipeline.generate_site([docs_dir], out, cfg, use_ai=True,
                                 layout="multi-page")
     assert rc == 0
     assert (out / "index.html").exists()
