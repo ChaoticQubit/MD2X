@@ -17,6 +17,7 @@ from agno.agent import Agent
 from ..log import get_logger
 from .blocks import Export
 from .full_render import FullPage
+from .guardrails import build_pre_hooks
 from .models import build_model
 from .skill import load_skill
 
@@ -63,6 +64,7 @@ def run_full_page(doc, cfg: dict, artifacts=None) -> FullPage:
         instructions=instr,
         output_schema=_FullPageModel,
         retries=ai.get("retries", 2),
+        pre_hooks=build_pre_hooks(cfg),
     )
     body = doc.fragment_html[:8000]
     prompt = (f"Document title: {doc.title}\nSection headings: {doc.outline}\n\n"

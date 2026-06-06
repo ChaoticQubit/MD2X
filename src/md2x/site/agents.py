@@ -17,6 +17,7 @@ from agno.agent import Agent
 
 from ..log import get_logger
 from .archetypes import get_archetype, get_suggested_artifacts, resolve_layout
+from .guardrails import build_pre_hooks
 from .models import build_model
 from .schemas import Doc, NavItem, SitePlan, PageEnhancement, DesignSystem
 from .skill import load_skill
@@ -115,6 +116,7 @@ def _make_agent(cfg: dict, role: str, instructions: str, schema):
         instructions=instructions,
         output_schema=schema,
         retries=retries,
+        pre_hooks=build_pre_hooks(cfg),
     )
 
 

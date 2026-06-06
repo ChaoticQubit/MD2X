@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from agno.agent import Agent
 
 from ...log import get_logger
+from ..guardrails import build_pre_hooks
 from ..models import build_model
 from .blocks import Callout, ReportPage, Stat, build_report_page
 
@@ -78,6 +79,7 @@ def run_report_page(doc, cfg: dict) -> ReportPage:
         instructions=_SYSTEM,
         output_schema=_ReportTopModel,
         retries=ai.get("retries", 2),
+        pre_hooks=build_pre_hooks(cfg),
     )
     body = doc.fragment_html[:8000]
     prompt = (f"Report title: {doc.title}\nSection headings: {doc.outline}\n\n"

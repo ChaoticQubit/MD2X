@@ -99,6 +99,13 @@ DEFAULTS: dict[str, Any] = {
         "max_tokens": None,       # cap on tokens per reply (null = provider default)
         "concurrency": 4,         # parallel per-page agent calls
         "retries": 2,             # agno retries on invalid structured output
+        "guardrails": {
+            # Input guardrails (agno pre_hooks). prompt_injection default-on so a
+            # hostile doc can't hijack the agent; pii/moderation opt-in.
+            "prompt_injection": True,
+            "pii": False,
+            "moderation": False,  # OpenAI moderation; needs OPENAI_API_KEY
+        },
     },
     "deploy": {
         "provider": "vercel",

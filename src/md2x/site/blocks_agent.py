@@ -10,7 +10,6 @@ blocks_render so `--no-ai` / non-synthesize paths never need the [ai] extra.
 """
 from __future__ import annotations
 
-import re
 import time
 
 from pydantic import BaseModel, Field
@@ -22,23 +21,15 @@ from .blocks import (
     KpiStrip, PageDoc, Prose, Quote, Step, Steps, Summary, Tab, Table, Tabs,
     Term, Timeline, build_page_doc,
 )
+from .guardrails import build_pre_hooks
 from .models import build_model
+from .sanitize import sanitize_artifact_html
 from .skill import load_skill
 
 log = get_logger(__name__)
 
 _MAX_BLOCKS = 24
 _MAX_ITEMS = 12
-
-# Defense-in-depth: strip external <script src> from artifact HTML. The artifact
-# iframe's CSP (default-src 'none') is the real network boundary; this just keeps
-# the emitted markup clean. PR-G adds the full artifact-HTML sanitizer.
-_EXT_SCRIPT_RE = re.compile(
-    r'(?is)<script\b[^>]*\bsrc\s*=\s*["\']?\s*(?:https?:|//)[^>]*>(?:\s*</script\s*>)?')
-
-
-def _sanitize_artifact(markup: str) -> str:
-    return _EXT_SCRIPT_RE.sub("", markup or "")
 
 _SYSTEM = (
     "You restructure a Markdown document into a typed block tree for a polished, "
@@ -163,7 +154,7 @@ def _to_block(m: _BlockM):
         exp = (Export(format=m.export_format or "markdown", label=m.export_label)
                if m.export_label.strip() else None)
         return Artifact(kind=m.kind or "widget", title=m.title,
-                        html=_sanitize_artifact(m.html), css=m.css, js=m.js,
+                        html=sanitize_artifact_html(m.html), css=m.css, js=m.js,
                         export=exp)
     log.warning("blocks agent: unknown block type %r; dropped", m.type)
     return None
@@ -185,6 +176,7 @@ def run_page_blocks(doc, cfg: dict, artifacts=None) -> PageDoc:
         instructions=instr,
         output_schema=_PageDocModel,
         retries=ai.get("retries", 2),
+        pre_hooks=build_pre_hooks(cfg),
     )
     body = doc.fragment_html[:8000]
     prompt = (f"Document title: {doc.title}\nSection headings: {doc.outline}\n\n"
