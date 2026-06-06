@@ -1,17 +1,20 @@
 """argparse wiring + runner for the `md2x site` subcommand."""
 from __future__ import annotations
 
-import sys
 import webbrowser
 from pathlib import Path
 
 from ..config import load_config
+from ..log import get_logger
 from .archetypes import resolve_layout
 from .pipeline import generate_site
 
+log = get_logger(__name__)
 
-def add_site_subparser(sub) -> None:
-    sp = sub.add_parser("site", help="Generate an AI website from Markdown files")
+
+def add_site_subparser(sub, parents=()) -> None:
+    sp = sub.add_parser("site", parents=list(parents),
+                        help="Generate an AI website from Markdown files")
     sp.add_argument("inputs", nargs="+", type=Path,
                     help="Markdown files and/or directories")
     sp.add_argument("-o", "--out-dir", type=Path, default=Path("site"),
@@ -54,23 +57,32 @@ def run_site(args) -> int:
     _apply_site_overrides(cfg, args)
 
     layout = resolve_layout(cfg["site"]["layout"], cfg["site"]["archetype"])
+    log.info("site: archetype=%s layout=%s fidelity=%s ai=%s -> %s",
+             cfg["site"]["archetype"], layout, cfg["site"]["fidelity"],
+             "off" if args.no_ai else "on", args.out_dir)
     rc = generate_site(args.inputs, args.out_dir, cfg,
                        use_ai=not args.no_ai, layout=layout)
     if rc != 0:
+        log.error("site generation failed (exit %d)", rc)
         return rc
 
     if args.deploy:
         from .deploy import deploy
         cfg["deploy"]["provider"] = args.deploy
+        log.info("deploying via %s", args.deploy)
         try:
             url = deploy(args.out_dir, cfg)
-            print(f"[md2x site] deployed: {url}")
+            log.info("deployed: %s", url)
         except Exception as e:
-            sys.stderr.write(f"ERROR: deploy failed: {e}\n")
+            log.error("deploy failed: %s", e)
+            log.debug("deploy traceback", exc_info=True)
             return 1
 
     if args.open_after:
         index = args.out_dir / "index.html"
         if index.exists():
+            log.info("opening %s in browser", index)
             webbrowser.open(index.resolve().as_uri())
+        else:
+            log.warning("--open given but %s does not exist", index)
     return 0

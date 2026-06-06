@@ -10,12 +10,24 @@ object. If you upgrade agno and these move, change ONLY this file.
 """
 from __future__ import annotations
 
+import time
+
 from pydantic import BaseModel, Field
 from agno.agent import Agent
 
+from ..log import get_logger
 from .archetypes import get_archetype, resolve_layout
 from .models import build_model
 from .schemas import Doc, NavItem, SitePlan, PageEnhancement
+
+log = get_logger(__name__)
+
+
+def _log_usage(resp) -> None:
+    """Best-effort token-usage log; agno exposes it on RunOutput.metrics."""
+    metrics = getattr(resp, "metrics", None)
+    if metrics is not None:
+        log.debug("token usage: %s", metrics)
 
 
 # ---- pydantic schemas the LLM fills (agno structured output) ---------------
@@ -62,11 +74,15 @@ def _to_enhancement(em: _EnhancementModel) -> PageEnhancement:
 
 def _make_agent(cfg: dict, role: str, instructions: str, schema):
     ai = cfg["ai"]
+    retries = ai.get("retries", 2)
+    log.debug("building %s agent (retries=%d, schema=%s)",
+              role, retries, schema.__name__)
+    log.debug("%s instructions:\n%s", role, instructions)
     return Agent(
         model=build_model(ai, role=role),
         instructions=instructions,
         output_schema=schema,
-        retries=ai.get("retries", 2),
+        retries=retries,
     )
 
 
@@ -94,13 +110,21 @@ def run_architect(docs: list[Doc], cfg: dict) -> SitePlan:
     agent = _make_agent(cfg, "architect", instr, _SitePlanModel)
     prompt = ("Plan a website for these documents:\n"
               + _outline_digest(docs))
+    log.info("architect: running over %d doc(s) (archetype=%s, layout=%s)",
+             len(docs), site["archetype"], layout)
+    log.debug("architect prompt (%d chars):\n%s", len(prompt), prompt)
+    t0 = time.perf_counter()
     resp = agent.run(prompt)
+    log.info("architect: responded in %.2fs", time.perf_counter() - t0)
+    log.debug("architect raw response: %r", resp.content)
+    _log_usage(resp)
     return _to_site_plan(resp.content)
 
 
 def run_page(doc: Doc, plan: SitePlan, cfg: dict) -> PageEnhancement:
     """Light-enhance only — additive blocks. Never rewrites the body."""
     if cfg["site"]["fidelity"] == "preserve":
+        log.debug("page %s: fidelity=preserve; skipping agent", doc.slug)
         return PageEnhancement()
     arch = get_archetype(cfg["site"]["archetype"])
     other = ", ".join(f"{n.slug} ({n.title})" for n in plan.nav
@@ -115,5 +139,15 @@ def run_page(doc: Doc, plan: SitePlan, cfg: dict) -> PageEnhancement:
     agent = _make_agent(cfg, "page", instr, _EnhancementModel)
     prompt = (f"Page '{doc.title}' (slug {doc.slug}). Section headings: "
               f"{doc.outline}. Body HTML:\n{doc.fragment_html[:6000]}")
+    log.info("page: enhancing %s (%d body chars)",
+             doc.slug, len(doc.fragment_html))
+    log.debug("page %s prompt (%d chars):\n%s", doc.slug, len(prompt), prompt)
+    t0 = time.perf_counter()
     resp = agent.run(prompt)
-    return _to_enhancement(resp.content)
+    log.debug("page %s: responded in %.2fs", doc.slug, time.perf_counter() - t0)
+    log.debug("page %s raw response: %r", doc.slug, resp.content)
+    _log_usage(resp)
+    enh = _to_enhancement(resp.content)
+    log.info("page %s: tldr=%s, %d takeaway(s), %d related",
+             doc.slug, bool(enh.tldr), len(enh.takeaways), len(enh.related))
+    return enh

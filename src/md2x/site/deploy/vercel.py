@@ -11,6 +11,10 @@ import os
 import time
 from pathlib import Path
 
+from ...log import get_logger
+
+log = get_logger(__name__)
+
 _API = "https://api.vercel.com"
 
 
@@ -49,6 +53,8 @@ def deploy_vercel(out_dir: Path, cfg: dict) -> str:
     payload = build_payload(name, files, production=dcfg.get("production", True))
     params = {"teamId": dcfg["team_id"]} if dcfg.get("team_id") else {}
     headers = {"Authorization": f"Bearer {token}"}
+    log.info("vercel: uploading %d file(s) as project %r (target=%s)",
+             len(files), name, payload["target"])
 
     with httpx.Client(timeout=120) as client:
         r = client.post(f"{_API}/v13/deployments", params=params,
@@ -57,6 +63,7 @@ def deploy_vercel(out_dir: Path, cfg: dict) -> str:
         dep = r.json()
         dep_id = dep.get("id")
         url = dep.get("url", "")
+        log.info("vercel: deployment %s created; polling for ready state", dep_id)
         # poll until ready
         for _ in range(60):
             if dep.get("readyState") in ("READY", "ERROR", "CANCELED"):
@@ -66,7 +73,10 @@ def deploy_vercel(out_dir: Path, cfg: dict) -> str:
                            headers=headers)
             s.raise_for_status()
             dep = s.json()
+            log.debug("vercel: deployment %s state=%s", dep_id,
+                      dep.get("readyState"))
     state = dep.get("readyState")
+    log.info("vercel: deployment %s final state=%s", dep_id, state)
     if state and state != "READY":
         raise RuntimeError(f"Vercel deployment ended in state {state}")
     return f"https://{url}" if url and not url.startswith("http") else url

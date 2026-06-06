@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import copy
-import sys
 from pathlib import Path
 from typing import Any
 
+from .log import get_logger
 from .paths import PROJECT_ROOT
+
+log = get_logger(__name__)
 
 
 DEFAULTS: dict[str, Any] = {
@@ -86,13 +88,16 @@ DEFAULTS: dict[str, Any] = {
         "recursive": True,
     },
     "ai": {
-        "model": "anthropic:claude-sonnet-4-6",
-        "architect_model": None,
-        "page_model": None,
-        "temperature": 0.4,
-        "max_tokens": None,
-        "concurrency": 4,
-        "retries": 2,
+        # `md2x site` runs two agents: the ARCHITECT (plans the whole site once)
+        # and the PER-PAGE agent (adds TL;DR/takeaways per doc). See md2x.yaml
+        # for the long-form explanation of every key below.
+        "model": "anthropic:claude-sonnet-4-6",  # default model for both agents
+        "architect_model": None,  # override model for the architect (null=model)
+        "page_model": None,       # override model for the per-page agent
+        "temperature": 0.4,       # sampling randomness; lower = steadier output
+        "max_tokens": None,       # cap on tokens per reply (null = provider default)
+        "concurrency": 4,         # parallel per-page agent calls
+        "retries": 2,             # agno retries on invalid structured output
     },
     "deploy": {
         "provider": "vercel",
@@ -140,17 +145,22 @@ def load_config(explicit: Path | None, md_path: Path) -> dict:
         PROJECT_ROOT / "md2x.yml",
     ]
     for p in candidates:
+        log.debug("config candidate: %s (exists=%s)", p, p.exists() if p else False)
         if p and p.exists():
             try:
                 import yaml
                 data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-                print(f"[md2x] using config {p}")
+                log.info("using config %s", p)
                 return deep_merge(DEFAULTS, data)
             except ImportError:
-                sys.stderr.write(f"WARN: PyYAML missing — skipping {p}\n")
+                # yaml is a module-level import: if it's unavailable it is
+                # unavailable for every candidate, so stop rather than re-warn.
+                log.warning("PyYAML missing — skipping %s", p)
                 break
             except Exception as e:
-                sys.stderr.write(f"WARN: failed to parse {p}: {e}\n")
-                break
-    print("[md2x] using built-in defaults (no YAML found)")
+                # Malformed file: skip it and try the next candidate (e.g. a
+                # valid project-root config) before falling back to defaults.
+                log.warning("failed to parse %s: %s", p, e)
+                continue
+    log.info("no md2x.yaml found; using built-in defaults")
     return deep_merge(DEFAULTS, {})

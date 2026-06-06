@@ -4,6 +4,14 @@
 *._md2x.json
 diagrams/
 **/diagrams/
+# the default `md2x site` output dir — repo root only, so it does NOT match the
+# source package src/md2x/site/ (the bug the bare `site/` pattern caused).
+/site/
+
+# Secrets — never commit. Keys/tokens live here; config only names the env vars.
+.env
+.env.*
+!.env.example
 
 # Local install (created by install.sh; do not commit)
 .venv/

@@ -10,8 +10,11 @@ import subprocess
 from pathlib import Path
 
 from ..binaries import resolve_binary
+from ..log import get_logger
 from ..renderers import render_into_markdown
 from .schemas import Doc, slugify
+
+log = get_logger(__name__)
 
 _H1_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 _H2_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
@@ -51,18 +54,24 @@ def md_to_fragment(md_path: Path, cfg: dict) -> str:
     # Fragment only: intentionally omits --standalone and pandoc_extra_args, since
     # either could inject a full-document wrapper and break the fragment contract.
     cmd = [pandoc_bin, "-f", "markdown", "-t", "html", "--no-highlight"]
+    log.debug("pandoc fragment: %s (slug=%s)", md_path.name, slug)
     res = subprocess.run(cmd, input=rewritten, text=True,
                          capture_output=True, cwd=work_dir)
     if res.returncode != 0:
+        log.error("pandoc failed for %s: %s", md_path.name, res.stderr[:400])
         raise RuntimeError(f"pandoc failed for {md_path.name}: {res.stderr[:400]}")
     return res.stdout
 
 
 def build_doc(md_path: Path, cfg: dict) -> Doc:
     """Build a :class:`Doc` from *md_path*, rendering diagrams and converting to HTML."""
-    return Doc(
+    log.debug("building doc: %s", md_path)
+    doc = Doc(
         path=md_path,
         title=extract_title(md_path),
         outline=extract_outline(md_path),
         fragment_html=md_to_fragment(md_path, cfg),
     )
+    log.debug("built doc %s: title=%r, %d section(s), %d html chars",
+              doc.slug, doc.title, len(doc.outline), len(doc.fragment_html))
+    return doc
