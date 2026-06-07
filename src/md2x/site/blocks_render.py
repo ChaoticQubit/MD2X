@@ -56,8 +56,8 @@ def _hero(b: Hero) -> str:
 
 
 def _summary(b: Summary) -> str:
-    return ('<div class="b-summary" data-reveal><div class="b-label">Summary</div>'
-            f"<p>{_e(b.text)}</p></div>")
+    # The section dek — a one-line distillation, no repetitive "Summary" label.
+    return f'<p class="b-summary" data-reveal>{_e(b.text)}</p>'
 
 
 def _prose(b: Prose) -> str:

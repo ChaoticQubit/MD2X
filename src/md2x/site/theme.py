@@ -93,7 +93,8 @@ nav.side a:hover{background:var(--accent-soft);color:var(--accent);text-decorati
 nav.side .group{color:var(--muted);font-size:11px;text-transform:uppercase;
   letter-spacing:.09em;font-weight:700;margin:18px 10px 6px}
 main{flex:1;width:100%;max-width:calc(var(--maxw) + 64px);margin:0 auto;
-  padding:64px 32px 120px}
+  padding:64px 32px 120px;display:flex;flex-direction:column;gap:var(--ds-space-4,2.4rem)}
+main>*{margin:0}
 @media (max-width:780px){
   .layout{flex-direction:column}
   nav.side{width:auto;flex:none;height:auto;position:static;border-right:0;
@@ -118,10 +119,12 @@ html.js [data-reveal].in{opacity:1;transform:none}
 }
 
 /* --- blocks: shared rhythm ---------------------------------------------- */
-.b-prose,.b-summary,.b-callout,.b-kpi,.b-cards,.b-timeline,.b-tablewrap,
-.b-codewrap,.b-quote,.b-figure,.b-chartwrap,.b-tabs,.b-collapsible,.b-steps,
-.b-glossary,.b-diagram{margin:var(--ds-space-3,1.7rem) 0}
+/* one consistent vertical rhythm: sections/main are flex columns with `gap`,
+   so every block is evenly spaced regardless of type — no per-block margins to
+   drift out of sync. */
+.b-section>*{margin:0}
 .b-prose>:first-child{margin-top:0}
+.b-prose>:last-child{margin-bottom:0}
 .b-prose img{border-radius:var(--radius)}
 .b-prose h2{margin-top:1.6em;font-size:1.4rem}
 .b-prose h3{margin-top:1.4em;font-size:1.13rem}
@@ -138,7 +141,7 @@ html.js [data-reveal].in{opacity:1;transform:none}
   color:var(--muted)}
 
 /* hero */
-.b-hero{margin:0 0 var(--ds-space-4,2.4rem)}
+.b-hero{margin:0}
 .b-hero h1{font-size:clamp(2rem,4.6vw,3rem);margin:.12em 0 .2em;letter-spacing:-.03em}
 .b-hero h1::after{content:"";display:block;width:54px;height:4px;margin-top:.5rem;
   border-radius:4px;background:var(--accent)}
@@ -149,15 +152,16 @@ html.js [data-reveal].in{opacity:1;transform:none}
   color:var(--accent);margin-bottom:7px}
 
 /* section */
-.b-section{scroll-margin-top:20px;padding-top:10px}
-.b-section-h{font-size:1.55rem;margin:0 0 var(--ds-space-2,1rem);padding-left:14px;
+.b-section{scroll-margin-top:20px;display:flex;flex-direction:column;
+  gap:var(--ds-space-3,1.7rem)}
+.b-section-h{font-size:1.55rem;margin:0;padding-left:14px;
   position:relative;letter-spacing:-.02em}
 .b-section-h::before{content:"";position:absolute;left:0;top:.14em;bottom:.14em;
   width:4px;border-radius:4px;background:var(--accent)}
 
 /* summary + callout */
-.b-summary{background:var(--surface);border-left:3px solid var(--accent);
-  border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow-sm)}
+.b-summary{font-size:1.18rem;line-height:1.55;color:var(--fg);font-weight:450;
+  padding:0 0 0 16px;border-left:3px solid var(--accent)}
 .b-callout{background:var(--accent-soft);border:1px solid var(--accent-line);
   border-radius:var(--radius);padding:14px 18px}
 .b-callout.tone-warn{background:color-mix(in srgb,#d29922 12%,transparent);
@@ -357,6 +361,8 @@ SITE_JS = r"""(function(){
       var m=raw.match(/^([^\d-]*)(-?[\d,]*\.?\d+)(.*)$/);
       if(!m) return;
       var prefix=m[1], suffix=m[3], num=m[2].replace(/,/g,"");
+      if(/[A-Za-z]/.test(prefix)) return;                 // dates/labels: "June 2026", "Q3 …"
+      if(prefix===""&&suffix===""&&/^(19|20)\d\d$/.test(num)) return;   // a bare year
       var target=parseFloat(num); if(isNaN(target)) return;
       var dec=(num.split(".")[1]||"").length;
       if(reduce) return;

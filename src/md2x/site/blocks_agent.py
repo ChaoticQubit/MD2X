@@ -18,9 +18,9 @@ from agno.agent import Agent
 
 from ..log import get_logger
 from .blocks import (
-    Artifact, Callout, Card, CardGrid, Code, Event, Export, Figure, Glossary,
-    Hero, Kpi, KpiStrip, PageDoc, Prose, Quote, Section, Step, Steps, Summary,
-    Tab, Table, Tabs, Term, Timeline, build_page_doc, figures_from_html,
+    Artifact, Callout, Card, CardGrid, Code, Collapsible, Event, Export, Figure,
+    Glossary, Hero, Kpi, KpiStrip, PageDoc, Prose, Quote, Section, Step, Steps,
+    Summary, Tab, Table, Tabs, Term, Timeline, build_page_doc, figures_from_html,
 )
 from .guardrails import build_pre_hooks
 from .invoke import invoke_agent
@@ -34,19 +34,30 @@ log = get_logger(__name__)
 
 _MAX_BLOCKS = 24
 _MAX_ITEMS = 12
-_MAX_SECTION_BLOCKS = 12
+_MAX_SECTION_BLOCKS = 10
+_MAX_SECTION_INPUT = 10000        # cap a section's input so huge ones don't time out
 _H1_RE = re.compile(r"(?is)<h1\b[^>]*>.*?</h1>")
 
 _SYSTEM = (
-    "You restructure a Markdown document into a typed block tree for a polished, "
-    "scannable web page. Render information in the shape it actually has: use KPI "
-    "strips for metrics, timelines for chronology, steps for procedures, tables "
-    "for tabular data, callouts for warnings, tabs for parallel variants.\n"
-    "GUARDRAILS — follow exactly:\n"
-    "  - Use ONLY facts present in the source; never invent figures or claims.\n"
-    "  - Open with one `hero` (the title). Keep prose faithful to the author.\n"
-    "  - Prefer specific blocks over walls of `prose`, but do not fabricate "
-    "structure the content does not support.\n"
+    "You are an information designer. Turn ONE section of a long document into a "
+    "tight, scannable web module that a busy reader grasps at a glance. DISTILL "
+    "HARD — the source is far too long; your output must be a small fraction of "
+    "it. The reader wants the meaning fast, not the original wording.\n"
+    "RULES — follow exactly:\n"
+    "  - Open with ONE `summary` block: a single full sentence stating the "
+    "section's most important point — a real takeaway, not a label or the topic "
+    "name — <=25 words. Always first.\n"
+    "  - Then show only the essentials, in the shape the facts actually have: "
+    "`kpi_strip` for metrics/numbers, `table` for comparisons or rows of data, "
+    "`steps` for a procedure, `timeline` for chronology, `card_grid` for "
+    "parallel items, `callout` for the single critical insight or warning. Pick "
+    "the few that fit; skip the rest.\n"
+    "  - Cut ruthlessly: no narrative, no preamble, no restating the heading. "
+    "Favour short labelled items over sentences. Use `prose` only when nothing "
+    "else fits, and keep each prose block under ~40 words.\n"
+    "  - Whole-section budget: aim for <=120 words of text in total.\n"
+    "  - Stay faithful to the facts: compress and rephrase freely, but never "
+    "invent a figure, name, or claim. You may drop detail; you may not add it.\n"
     "  - Plain text in every field — no HTML, no Markdown."
 )
 
@@ -183,19 +194,25 @@ def _build_agent(cfg: dict, artifacts=None) -> Agent:
 
 def run_section_blocks(title: str, section_html: str, cfg: dict,
                        artifacts=None) -> list:
-    """Restructure ONE section into blocks from its FULL html.
+    """Distil ONE section into a short, glance-able block tree from its html.
 
-    Sections are small, so nothing is truncated and the model can focus on the
-    real shape of that one section. Returns the section's child blocks (no hero,
-    no page title — the page owns those).
+    Returns the section's child blocks (no hero, no page title — the page owns
+    those). An oversized section is capped to `_MAX_SECTION_INPUT` so one long
+    section can't stall the run; a glance summary only needs the gist.
     """
+    if len(section_html) > _MAX_SECTION_INPUT:
+        log.debug("blocks section %r: input %d chars capped to %d for distillation",
+                  title, len(section_html), _MAX_SECTION_INPUT)
+        section_html = section_html[:_MAX_SECTION_INPUT]
     agent = _build_agent(cfg, artifacts)
     prompt = (
         f"Section heading: {title}\n\n"
-        "Restructure ONLY the section below into typed blocks. Do NOT emit a "
-        "hero or repeat the section heading (the page renders it). Render the "
-        "information in the shape it has — KPI strips for metrics, tables for "
-        "tabular data, steps for procedures, timelines for chronology.\n\n"
+        "Distil ONLY the section below into a glance-able module. Start with a "
+        "<=25-word `summary` that states the key point as a full sentence (not a "
+        "label), then the essential facts as the tightest blocks "
+        "that fit (kpi_strip / table / steps / timeline / card_grid / callout). "
+        "Cut everything non-essential — aim for <=120 words of text total. Do "
+        "NOT emit a hero or repeat the heading.\n\n"
         f"Section body (HTML):\n{section_html}"
     )
     resp = invoke_agent(agent, prompt, role="blocks-section", label=title,
@@ -203,6 +220,25 @@ def run_section_blocks(title: str, section_html: str, cfg: dict,
     model: _PageDocModel = resp.content
     return [b for b in (_to_block(m) for m in model.blocks[:_MAX_SECTION_BLOCKS])
             if b is not None and not isinstance(b, Hero)]
+
+
+def _condensed_fallback(section_html: str) -> list:
+    """Glance-able degradation when a section can't be synthesised: show the
+    first paragraph, tuck the remainder behind a collapsible. A lead plus a
+    "show full section" toggle beats dumping the whole verbatim body inline."""
+    section_html = (section_html or "").strip()
+    if not section_html:
+        return []
+    if len(section_html) < 700:                   # already short — show as-is
+        return [Prose(html=section_html)]
+    m = re.search(r"(?is)<p\b.*?</p>", section_html)
+    if not m:
+        return [Prose(html=section_html)]
+    lead, rest = m.group(0), section_html[:m.start()] + section_html[m.end():]
+    out: list = [Prose(html=lead)]
+    if rest.strip():
+        out.append(Collapsible(summary="Show full section", html=rest))
+    return out
 
 
 def run_page_blocks(doc, cfg: dict, artifacts=None) -> PageDoc:
@@ -228,12 +264,12 @@ def run_page_blocks(doc, cfg: dict, artifacts=None) -> PageDoc:
         try:
             kids = run_section_blocks(sec.title, sec.html, cfg, artifacts)
         except Exception as e:                    # one bad section never sinks the doc
-            log.warning("blocks agent: section %r failed (%s); verbatim fallback",
+            log.warning("blocks agent: section %r failed (%s); condensed fallback",
                         sec.title, e)
             log.debug("blocks section %r failure", sec.title, exc_info=True)
             kids = []
-        if not kids:                              # empty synth → keep author's HTML
-            kids = [Prose(html=sec.html)] if sec.html else []
+        if not kids:                              # synth failed/empty → glance-able fallback
+            kids = _condensed_fallback(sec.html)  # verbatim already carries diagrams
         else:
             kids.extend(figs)                     # land the section's rendered diagrams
         anchor = slugify(sec.title) if sec.title else f"section-{id(sec) & 0xffff}"
