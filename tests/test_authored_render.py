@@ -38,6 +38,21 @@ def test_authored_strips_leading_duplicate_heading():
     assert "<p>Body</p>" in h
 
 
+def test_authored_strips_wrapped_title_heading():
+    # a title heading the builder wrapped in a div is still removed
+    b = AuthoredSection(anchor="roles", title="Roles",
+                        html="<div class='x'><h2>Roles</h2><p>y</p></div>", css="")
+    h = br.render_block(b)
+    assert h.count("<h2") == 1 and "<p>y</p>" in h
+
+
+def test_authored_keeps_non_title_headings():
+    b = AuthoredSection(anchor="plan", title="90 Day Plan",
+                        html="<h3>Days 1-30</h3><p>a</p><h3>Days 31-60</h3>", css="")
+    h = br.render_block(b)
+    assert h.count("<h3") == 2          # genuine subheadings survive
+
+
 def test_authored_table_becomes_sortable_b_table():
     b = AuthoredSection(anchor="m", title="M",
                         html="<table><thead><tr><th>A</th></tr></thead>"
