@@ -111,7 +111,8 @@ def generate_site(inputs: list[Path], out_dir: Path, cfg: dict, *,
             # iframes); authored = the designer/builder author each section's own
             # HTML/CSS. All three share the blocks writer, nav, and engine assets.
             from .blocks_render import write_blocks_site
-            write_blocks_site(out_dir, docs, plan, enh, cfg, use_ai=use_ai)
+            write_blocks_site(out_dir, docs, plan, enh, cfg, use_ai=use_ai,
+                              layout=layout)
         else:
             write_site(out_dir, docs, plan, enh, cfg, layout=layout)
     log.info("wrote site to %s", out_dir)
