@@ -1,5 +1,5 @@
 import pytest
-from md2x.site.models import build_model
+from md2x.site.models import build_model, is_openai_like
 
 
 def test_string_model_passthrough():
@@ -65,3 +65,29 @@ def test_openai_like_inline_api_key(monkeypatch):
     cfg = {"model": {"provider": "openai-like", "id": "x",
                      "base_url": "http://h/v1", "api_key": "sk-inline"}}
     assert build_model(cfg).api_key == "sk-inline"
+
+
+# ── is_openai_like: drives use_json_mode so agno injects the schema into the
+#    prompt for local endpoints that ignore native response_format enforcement ──
+
+def test_is_openai_like_true_for_dict_spec():
+    assert is_openai_like({"model": {"provider": "openai-like", "id": "x",
+                                     "base_url": "http://h/v1"}}) is True
+
+
+def test_is_openai_like_default_provider_is_openai_like():
+    # a dict spec with no provider defaults to openai-like (matches build_model).
+    assert is_openai_like({"model": {"id": "x", "base_url": "http://h/v1"}}) is True
+
+
+def test_is_openai_like_false_for_native_string():
+    assert is_openai_like({"model": "anthropic:claude-sonnet-4-6"}) is False
+
+
+def test_is_openai_like_respects_role_override():
+    # builder targets a local endpoint while the base model is a native string.
+    cfg = {"model": "anthropic:claude-x",
+           "builder_model": {"provider": "openai-like", "id": "y",
+                             "base_url": "http://h/v1"}}
+    assert is_openai_like(cfg, role="builder") is True
+    assert is_openai_like(cfg, role="architect") is False  # falls back to model

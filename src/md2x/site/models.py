@@ -57,3 +57,19 @@ def build_model(ai_cfg: dict, role: str = "model") -> Any:
         f"(use a 'provider:model_id' string for native providers, "
         f"or provider: openai-like for OpenAI-compatible endpoints)"
     )
+
+
+def is_openai_like(ai_cfg: dict, role: str = "model") -> bool:
+    """True when ``role``'s resolved model is a dict spec targeting an
+    OpenAI-compatible / local endpoint, rather than a native "provider:model_id"
+    string.
+
+    Such endpoints often advertise OpenAI structured-output support yet ignore
+    the `response_format` JSON schema (a local proxy claims support but no-ops
+    it), so the model free-forms JSON that fails the pydantic output schema. The
+    agents key `use_json_mode` off this so agno injects the schema into the
+    prompt instead of trusting native enforcement; native string models keep
+    native structured output.
+    """
+    spec = ai_cfg.get(f"{role}_model") or ai_cfg["model"]
+    return isinstance(spec, dict) and spec.get("provider", "openai-like") == "openai-like"

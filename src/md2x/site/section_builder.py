@@ -18,7 +18,7 @@ from .blocks import Artifact, AuthoredSection, Export
 from .design_tree import SectionSpec
 from .guardrails import build_pre_hooks
 from .invoke import invoke_agent
-from .models import build_model
+from .models import build_model, is_openai_like
 from .sanitize import sanitize_artifact_html
 from .skill import load_skill
 
@@ -69,6 +69,7 @@ def _build_agent(cfg: dict) -> Agent:
         instructions=instr,
         output_schema=_BuiltM,
         retries=cfg["ai"].get("retries", 2),
+        use_json_mode=is_openai_like(cfg["ai"], "builder"),
         pre_hooks=build_pre_hooks(cfg),
     )
 
