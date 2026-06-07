@@ -235,10 +235,29 @@ a.b-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);
 .b-quote p{margin:0}
 .b-quote cite{display:block;margin-top:8px;font-size:.86rem;font-style:normal;color:var(--muted)}
 
-/* figure */
-.b-figure{margin:0}
-.b-figure img{max-width:100%;height:auto;border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+/* figure — bounded inline preview; click to open the zoom/pan lightbox */
+.b-figure{margin:0;position:relative}
+.b-figure img,.b-diagram img{max-width:100%;max-height:60vh;height:auto;
+  object-fit:contain;border-radius:var(--radius);box-shadow:var(--shadow-sm);
+  background:var(--bg)}
 .b-figure figcaption{color:var(--muted);font-size:.85rem;margin-top:8px;text-align:center}
+.b-figure::after{content:"\\26F6 zoom";position:absolute;top:10px;right:10px;
+  font-size:.7rem;font-weight:600;color:#fff;background:rgba(8,12,20,.55);
+  padding:3px 9px;border-radius:999px;opacity:0;transition:opacity .15s;pointer-events:none}
+.b-figure:hover::after{opacity:1}
+.md2x-zoomable{cursor:zoom-in}
+.md2x-lightbox{position:fixed;inset:0;z-index:100;display:none;overflow:hidden;
+  align-items:center;justify-content:center;background:rgba(8,12,20,.88)}
+.md2x-lightbox.open{display:flex}
+.md2x-lb-img{max-width:92vw;max-height:88vh;background:#fff;border-radius:10px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);cursor:grab;user-select:none;
+  -webkit-user-drag:none;transform-origin:center;will-change:transform}
+.md2x-lb-img:active{cursor:grabbing}
+.md2x-lb-bar{position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:101}
+.md2x-lb-bar button{min-width:40px;height:40px;padding:0 14px;border:0;border-radius:10px;
+  background:rgba(255,255,255,.16);color:#fff;cursor:pointer;font:inherit;
+  font-size:1.05rem;font-weight:650;line-height:1}
+.md2x-lb-bar button:hover{background:rgba(255,255,255,.3)}
 
 /* chart (inline svg, bars grow on reveal) */
 .b-chartwrap{background:var(--card);border:1px solid var(--border);
@@ -528,9 +547,63 @@ SITE_JS = r"""(function(){
     });
   }
 
+  // image viewer — click a figure/diagram to open it in a zoom + pan lightbox
+  function imageViewer(){
+    var imgs=doc.querySelectorAll('.b-figure img, .b-diagram img, .b-prose img');
+    if(!imgs.length) return;
+    var overlay, view, store, drag=false, ox=0, oy=0;
+    function zoom(f){ var s=Math.min(8, Math.max(1, store.get('s')*f));
+      store.set(s===1?{s:1,x:0,y:0}:{s:s}); }
+    function build(){
+      overlay=doc.createElement('div'); overlay.className='md2x-lightbox';
+      overlay.innerHTML='<div class="md2x-lb-bar">'
+        +'<button data-a="out" aria-label="Zoom out">−</button>'
+        +'<button data-a="reset" aria-label="Fit">Fit</button>'
+        +'<button data-a="in" aria-label="Zoom in">+</button>'
+        +'<button data-a="close" aria-label="Close">✕</button></div>'
+        +'<img class="md2x-lb-img" alt="">';
+      doc.body.appendChild(overlay);
+      view=overlay.querySelector('.md2x-lb-img');
+      store=createStore({s:1,x:0,y:0}, function(st){
+        view.style.transform='translate('+st.x+'px,'+st.y+'px) scale('+st.s+')'; });
+      overlay.addEventListener('click', function(e){
+        var a=e.target.getAttribute&&e.target.getAttribute('data-a');
+        if(a==='close'||e.target===overlay) return close();
+        if(a==='in') zoom(1.25); else if(a==='out') zoom(1/1.25);
+        else if(a==='reset') store.set({s:1,x:0,y:0}); });
+      view.addEventListener('wheel', function(e){ e.preventDefault();
+        zoom(e.deltaY<0?1.12:1/1.12); }, {passive:false});
+      view.addEventListener('dblclick', function(){
+        store.set(store.get('s')>1?{s:1,x:0,y:0}:{s:2}); });
+      view.addEventListener('mousedown', function(e){ drag=true;
+        ox=e.clientX-store.get('x'); oy=e.clientY-store.get('y'); e.preventDefault(); });
+      win.addEventListener('mousemove', function(e){ if(drag)
+        store.set({x:e.clientX-ox, y:e.clientY-oy}); });
+      win.addEventListener('mouseup', function(){ drag=false; });
+      view.addEventListener('touchstart', function(e){ if(e.touches.length===1){
+        drag=true; ox=e.touches[0].clientX-store.get('x');
+        oy=e.touches[0].clientY-store.get('y'); } }, {passive:true});
+      view.addEventListener('touchmove', function(e){ if(drag&&e.touches.length===1)
+        store.set({x:e.touches[0].clientX-ox, y:e.touches[0].clientY-oy}); }, {passive:true});
+      view.addEventListener('touchend', function(){ drag=false; });
+      doc.addEventListener('keydown', function(e){
+        if(!overlay.classList.contains('open')) return;
+        if(e.key==='Escape') close();
+        else if(e.key==='+'||e.key==='=') zoom(1.25);
+        else if(e.key==='-') zoom(1/1.25); });
+    }
+    function open(src,alt){ if(!overlay) build();
+      view.src=src; view.alt=alt||''; store.set({s:1,x:0,y:0});
+      overlay.classList.add('open'); doc.body.style.overflow='hidden'; }
+    function close(){ if(overlay){ overlay.classList.remove('open');
+      doc.body.style.overflow=''; } }
+    imgs.forEach(function(im){ im.classList.add('md2x-zoomable');
+      im.addEventListener('click', function(){ open(im.currentSrc||im.src, im.alt); }); });
+  }
+
   ready(function(){
-    [revealOnScroll,countUp,scrollSpy,tabs,sortableTables,copyButtons,
-     themeToggle,readingProgress,smoothAnchors,hybridBroker].forEach(function(fn){
+    [revealOnScroll,countUp,scrollSpy,tabs,sortableTables,copyButtons,themeToggle,
+     readingProgress,smoothAnchors,hybridBroker,imageViewer].forEach(function(fn){
       try{ fn(); }catch(e){ if(win.console) console.warn("md2x:", e); }
     });
   });

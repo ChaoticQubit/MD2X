@@ -105,3 +105,15 @@ def test_write_blocks_site_emits_shared_assets(tmp_path):
     assert 'classList.add("js")' in page          # no-JS reveal guard
     assert "--ds-accent" in page                   # per-page tokens stay inline
     assert "http://" not in page and "https://" not in page
+
+
+# --- image lightbox (zoom + pan) -------------------------------------------
+
+def test_site_js_has_image_lightbox():
+    assert "function imageViewer(" in SITE_JS
+    assert "md2x-lightbox" in SITE_JS and "md2x-zoomable" in SITE_JS
+
+
+def test_site_css_has_lightbox():
+    assert ".md2x-lightbox" in SITE_CSS and ".md2x-lb-img" in SITE_CSS
+    assert "cursor:zoom-in" in SITE_CSS
