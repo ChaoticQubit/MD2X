@@ -23,18 +23,23 @@ def build_model(ai_cfg: dict, role: str = "model") -> Any:
     provider = spec.get("provider", "openai-like")
     if provider == "openai-like":
         from agno.models.openai.like import OpenAILike
-        if "api_key_env" not in spec:
-            raise ValueError(
-                "openai-like provider requires 'api_key_env' in the model spec "
-                "(the name of the env var holding the API key)"
-            )
-        key_env = spec["api_key_env"]
-        api_key = os.environ.get(key_env)
-        if not api_key:
-            raise RuntimeError(
-                f"environment variable {key_env} is not set "
-                f"(needed for ai.model provider 'openai-like')"
-            )
+        # api_key is OPTIONAL: local endpoints (Ollama, LM Studio, llama.cpp,
+        # vLLM) need no auth. Name an env var via `api_key_env` for a hosted
+        # endpoint that does require one; omit it for a local server. The OpenAI
+        # client still wants a non-empty string, so md2x supplies a harmless
+        # placeholder when none is configured.
+        key_env = spec.get("api_key_env")
+        if key_env:
+            api_key = os.environ.get(key_env)
+            if not api_key:
+                raise RuntimeError(
+                    f"environment variable {key_env} is not set "
+                    f"(named in ai.model.api_key_env)"
+                )
+        else:
+            api_key = spec.get("api_key") or "not-needed"
+            log.debug("role %s: openai-like, no api_key_env; using placeholder key",
+                      role)
         # Apply tuning params to the model object where the API supports it.
         # (Native "provider:model_id" string models carry no params — agno uses
         # the provider defaults for those.)
