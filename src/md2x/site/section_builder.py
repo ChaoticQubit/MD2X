@@ -44,6 +44,7 @@ _SYSTEM = (
     "by the site engine.\n"
     "  - ARTIFACT realization: put a self-contained interactive widget in "
     "html/css/js — JS is allowed and runs sandboxed in an iframe. Set `kind`.\n"
+    "Do NOT repeat the section title as a heading — the page already renders it. "
     "Make distinct, well-designed sections; the shared tokens keep them coherent."
 )
 

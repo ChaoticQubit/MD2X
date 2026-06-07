@@ -29,6 +29,23 @@ def test_authored_section_no_css_emits_no_style_tag():
     assert "<style>" not in h and "<p>k</p>" in h
 
 
+def test_authored_strips_leading_duplicate_heading():
+    b = AuthoredSection(anchor="roles", title="Roles",
+                        html="<h2>Roles</h2><p>Body</p><h3>Sub</h3>", css="")
+    h = br.render_block(b)
+    assert h.count("<h2") == 1          # only the page's section heading survives
+    assert "<h3>Sub</h3>" in h          # genuine subheadings are kept
+    assert "<p>Body</p>" in h
+
+
+def test_authored_table_becomes_sortable_b_table():
+    b = AuthoredSection(anchor="m", title="M",
+                        html="<table><thead><tr><th>A</th></tr></thead>"
+                             "<tbody><tr><td>1</td></tr></tbody></table>", css="")
+    h = br.render_block(b)
+    assert 'class="b-table" data-sortable' in h
+
+
 def test_section_nav_lists_authored_sections():
     page = PageDoc(slug="p", title="P", blocks=[
         Hero(title="P"), AuthoredSection(anchor="a", title="Alpha", html="", css="")])

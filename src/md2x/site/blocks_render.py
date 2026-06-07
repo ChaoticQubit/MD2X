@@ -276,14 +276,22 @@ def _artifact(b: Artifact, ds_css: str = "") -> str:
 
 
 _INLINE_STYLE = re.compile(r"(?is)<style\b.*?</style\s*>")
+# the builder sometimes repeats the section title as a leading heading; the page
+# already renders the title, so strip one leading h1/h2 to avoid a double heading.
+_LEAD_HEADING = re.compile(r"(?is)^\s*<h[12]\b[^>]*>.*?</h[12]\s*>\s*")
+# upgrade bare authored tables to the engine's polished, sortable treatment.
+_AUTH_TABLE = re.compile(r"(?is)<table(?![^>]*\bb-table\b)([^>]*)>")
 
 
 def _authored_section(b: AuthoredSection) -> str:
     """Render an AI-authored section: scope+lint its CSS to `#<anchor>`, strip any
-    inline <style>/<script> from the HTML (CSS must arrive via the css field; no JS
-    in the main document — that lives in Artifact iframes), sanitize the rest."""
+    inline <style>/<script> and a duplicated leading heading from the HTML (CSS must
+    arrive via the css field; no JS in the main document — that lives in Artifact
+    iframes), sanitize the rest, and upgrade bare tables to the sortable engine look."""
     scoped = enforce_section_css(b.css, f"#{_e(b.anchor)}")
-    safe = sanitize_inline(_INLINE_STYLE.sub("", b.html or ""))
+    html = _LEAD_HEADING.sub("", _INLINE_STYLE.sub("", b.html or ""), count=1)
+    safe = _AUTH_TABLE.sub(r'<table class="b-table" data-sortable\1>',
+                           sanitize_inline(html))
     style = f"<style>{scoped}</style>" if scoped else ""
     return (f'<section id="{_e(b.anchor)}" class="b-section b-authored" data-reveal>'
             f'{style}<h2 class="b-section-h">{_e(b.title)}</h2>{safe}</section>')

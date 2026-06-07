@@ -140,6 +140,33 @@ html.js [data-reveal].in{opacity:1;transform:none}
 .b-prose blockquote{margin:1.2em 0;padding:.4em 1.1em;border-left:3px solid var(--accent);
   color:var(--muted)}
 
+/* authored sections: the AI authors raw semantic HTML + a little scoped accent
+   CSS; the engine supplies the polished base styling so every authored section is
+   on-brand and consistent (not bare), no matter what the model emitted. */
+.b-authored{font-size:1.02rem;line-height:1.65}
+.b-authored p{margin:0;color:var(--fg)}
+.b-authored h3{font-size:1.16rem;margin:0;letter-spacing:-.01em}
+.b-authored h4{font-size:.95rem;margin:0;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em}
+.b-authored ul,.b-authored ol{margin:0;padding-left:1.2em;display:flex;
+  flex-direction:column;gap:.4rem}
+.b-authored a{color:var(--accent);text-decoration:none;
+  border-bottom:1px solid var(--accent-line)}
+.b-authored strong{font-weight:700}
+.b-authored code{background:var(--accent-soft);padding:.12em .36em;border-radius:5px;
+  font-family:var(--mono);font-size:.9em}
+.b-authored blockquote{margin:0;padding:.4em 1.1em;border-left:3px solid var(--accent);
+  color:var(--muted)}
+.b-authored img{max-width:100%;height:auto;border-radius:var(--radius)}
+.b-authored figure{margin:0}
+/* common layout helpers an author may reach for */
+.b-authored .grid{display:grid;gap:var(--ds-space-2,1rem);
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.b-authored .cards{display:grid;gap:var(--ds-space-2,1rem);
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.b-authored .card{border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;background:var(--card)}
+
 /* hero */
 .b-hero{margin:0}
 .b-hero h1{font-size:clamp(2rem,4.6vw,3rem);margin:.12em 0 .2em;letter-spacing:-.03em}
