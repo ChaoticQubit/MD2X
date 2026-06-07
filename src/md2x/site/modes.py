@@ -11,7 +11,7 @@ from ..log import get_logger
 
 log = get_logger(__name__)
 
-RENDER_MODES = ("blocks", "hybrid", "full")
+RENDER_MODES = ("blocks", "hybrid", "full", "authored")
 DEFAULT_RENDER_MODE = "blocks"
 FIDELITIES = ("preserve", "light-enhance", "synthesize")
 DEFAULT_FIDELITY = "light-enhance"

@@ -333,6 +333,15 @@ def _page_doc_for(doc, cfg: dict, plan: SitePlan, use_ai: bool) -> PageDoc:
     """AI block tree at synthesize (with the architect's per-page artifacts),
     else the deterministic builder. The agent runs only when AI is enabled —
     `--no-ai` is always deterministic, regardless of fidelity."""
+    if use_ai and cfg["site"].get("render_mode") == "authored":
+        try:
+            from .authored_agent import run_authored_page   # lazy: needs agno
+            return run_authored_page(doc, cfg, plan)
+        except Exception as e:
+            log.warning("authored agent failed for %s (%s); deterministic page",
+                        doc.slug, e)
+            log.debug("authored %s failure", doc.slug, exc_info=True)
+            return build_page_doc(doc)
     if use_ai and cfg["site"].get("fidelity") == "synthesize":
         try:
             from .blocks_agent import run_page_blocks   # lazy: needs agno

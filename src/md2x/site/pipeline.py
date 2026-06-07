@@ -100,13 +100,16 @@ def generate_site(inputs: list[Path], out_dir: Path, cfg: dict, *,
         from .full_render import write_full_site
         write_full_site(out_dir, docs, plan, cfg, use_ai=use_ai)
     else:
-        if use_ai:
+        # authored sections own the whole page, so they skip the per-page
+        # enhancement aids (TL;DR / takeaways) — that also keeps cost ≈ N+1 calls.
+        if use_ai and mode != "authored":
             enh = _enhance_all(docs, plan, cfg)
         else:
             enh = {d.slug: PageEnhancement() for d in docs}
-        if mode in ("blocks", "hybrid"):
-            # hybrid = typed-block pages; the synthesize agent may also emit sandboxed
-            # `artifact` blocks (mounted as CSP-locked iframes by the renderer).
+        if mode in ("blocks", "hybrid", "authored"):
+            # blocks/hybrid = typed-block pages (hybrid may add sandboxed `artifact`
+            # iframes); authored = the designer/builder author each section's own
+            # HTML/CSS. All three share the blocks writer, nav, and engine assets.
             from .blocks_render import write_blocks_site
             write_blocks_site(out_dir, docs, plan, enh, cfg, use_ai=use_ai)
         else:
