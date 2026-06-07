@@ -17,7 +17,7 @@ from pathlib import Path
 
 from ..log import get_logger
 from .blocks import (
-    Artifact, Block, Callout, CardGrid, Chart, Code, Collapsible, DiagramSvg,
+    Artifact, AuthoredSection, Block, Callout, CardGrid, Chart, Code, Collapsible, DiagramSvg,
     Figure, Glossary, Hero, KpiStrip, PageDoc, Prose, Quote, RawHtml, Section,
     Steps, Summary, Table, Tabs, Timeline, build_page_doc,
 )
@@ -25,6 +25,7 @@ from .design_css import design_css_vars, render_design_system_page
 from .render import (
     _accent, _copy_diagrams, _design_for, _enhancement_html, _href, _nav_html,
 )
+from .css_contract import enforce_section_css
 from .sanitize import sanitize_inline, sanitize_svg
 from .schemas import PageEnhancement, SitePlan
 from .theme import SITE_CSS, SITE_JS
@@ -274,7 +275,23 @@ def _artifact(b: Artifact, ds_css: str = "") -> str:
     )
 
 
+_INLINE_STYLE = re.compile(r"(?is)<style\b.*?</style\s*>")
+
+
+def _authored_section(b: AuthoredSection) -> str:
+    """Render an AI-authored section: scope+lint its CSS to `#<anchor>`, strip any
+    inline <style>/<script> from the HTML (CSS must arrive via the css field; no JS
+    in the main document — that lives in Artifact iframes), sanitize the rest."""
+    scoped = enforce_section_css(b.css, f"#{_e(b.anchor)}")
+    safe = sanitize_inline(_INLINE_STYLE.sub("", b.html or ""))
+    style = f"<style>{scoped}</style>" if scoped else ""
+    return (f'<section id="{_e(b.anchor)}" class="b-section b-authored" data-reveal>'
+            f'{style}<h2 class="b-section-h">{_e(b.title)}</h2>{safe}</section>')
+
+
 def render_block(block: Block, ds_css: str = "") -> str:
+    if isinstance(block, AuthoredSection):
+        return _authored_section(block)
     if isinstance(block, Artifact):
         return _artifact(block, ds_css)
     if isinstance(block, Section):
@@ -333,7 +350,7 @@ def _section_nav_html(page: PageDoc, plan: SitePlan, active_slug: str) -> str:
     H2 section (the in-page table of contents), and — when the site has more than
     one doc — links to the others. Replaces one-file-one-link nav so a single
     large document is actually navigable."""
-    secs = [b for b in page.blocks if isinstance(b, Section)]
+    secs = [b for b in page.blocks if isinstance(b, (Section, AuthoredSection))]
     parts = ['<nav class="side">']
     parts.append(f'<a class="nav-doc active" href="#{_e(page.slug)}">'
                  f"{_e(page.title)}</a>")

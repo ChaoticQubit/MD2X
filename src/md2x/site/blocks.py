@@ -203,17 +203,28 @@ class Section:
     blocks: list["Block"] = field(default_factory=list)
 
 
+@dataclass
+class AuthoredSection:
+    """A section whose inner HTML + CSS the AI authored directly (authored mode).
+    The renderer scopes+lints the CSS to `#<anchor>` and sanitizes the HTML, so it
+    is safe to inline in the main document. Carries no JS — JS lives in Artifact."""
+    anchor: str
+    title: str
+    html: str = ""
+    css: str = ""
+
+
 Block = Union[
     Hero, Summary, Prose, KpiStrip, Callout, CardGrid, Timeline, Table, Code,
     Quote, Figure, Chart, Tabs, Collapsible, Steps, DiagramSvg, Glossary, RawHtml,
-    Artifact, Section,
+    Artifact, Section, AuthoredSection,
 ]
 
 # Tuple form for isinstance dispatch in the renderer.
 BLOCK_TYPES = (
     Hero, Summary, Prose, KpiStrip, Callout, CardGrid, Timeline, Table, Code,
     Quote, Figure, Chart, Tabs, Collapsible, Steps, DiagramSvg, Glossary, RawHtml,
-    Artifact, Section,
+    Artifact, Section, AuthoredSection,
 )
 
 
