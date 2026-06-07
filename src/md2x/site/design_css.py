@@ -78,6 +78,11 @@ def _tokens(ds: DesignSystem) -> dict[str, str]:
         "--ds-density": density,
         "--ds-space-1": s1, "--ds-space-2": s2,
         "--ds-space-3": s3, "--ds-space-4": s4,
+        "--ds-space-5": "3.5rem", "--ds-space-6": "5rem",
+        # Fixed type scale — the authored-mode contract tokens (css_contract
+        # lints raw font-size px away; the builder styles via these).
+        "--ds-fs-1": "0.78rem", "--ds-fs-2": "0.92rem", "--ds-fs-3": "1rem",
+        "--ds-fs-4": "1.25rem", "--ds-fs-5": "1.6rem", "--ds-fs-6": "2.2rem",
     }
 
 

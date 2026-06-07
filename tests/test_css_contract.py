@@ -1,5 +1,7 @@
 """The hard design-system enforcement engine for authored sections."""
 from md2x.site.css_contract import scope_css, lint_css, enforce_section_css
+from md2x.site.design_css import design_css_vars
+from md2x.site.schemas import DesignSystem
 
 
 # --- scope_css --------------------------------------------------------------
@@ -61,3 +63,11 @@ def test_lint_keeps_rgb_via_var_token():
 def test_enforce_section_css_scopes_then_lints():
     out = enforce_section_css(".a{color:#fff;gap:8px}", "#s1")
     assert "#s1 .a" in out and "#fff" not in out and "gap:8px" in out
+
+
+# --- contract tokens (design_css) -------------------------------------------
+
+def test_design_tokens_include_type_and_extended_space_scale():
+    css = design_css_vars(DesignSystem())
+    for t in ("--ds-fs-1", "--ds-fs-3", "--ds-fs-6", "--ds-space-5", "--ds-space-6"):
+        assert t in css
