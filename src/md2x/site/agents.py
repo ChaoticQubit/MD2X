@@ -10,26 +10,18 @@ object. If you upgrade agno and these move, change ONLY this file.
 """
 from __future__ import annotations
 
-import time
-
 from pydantic import BaseModel, Field
 from agno.agent import Agent
 
 from ..log import get_logger
 from .archetypes import get_archetype, get_suggested_artifacts, resolve_layout
 from .guardrails import build_pre_hooks
+from .invoke import invoke_agent
 from .models import build_model
 from .schemas import Doc, NavItem, SitePlan, PageEnhancement, DesignSystem
 from .skill import load_skill
 
 log = get_logger(__name__)
-
-
-def _log_usage(resp) -> None:
-    """Best-effort token-usage log; agno exposes it on RunOutput.metrics."""
-    metrics = getattr(resp, "metrics", None)
-    if metrics is not None:
-        log.debug("token usage: %s", metrics)
 
 
 # ---- pydantic schemas the LLM fills (agno structured output) ---------------
@@ -156,11 +148,9 @@ def run_architect(docs: list[Doc], cfg: dict) -> SitePlan:
     log.info("architect: running over %d doc(s) (archetype=%s, layout=%s)",
              len(docs), site["archetype"], layout)
     log.debug("architect prompt (%d chars):\n%s", len(prompt), prompt)
-    t0 = time.perf_counter()
-    resp = agent.run(prompt)
-    log.info("architect: responded in %.2fs", time.perf_counter() - t0)
+    resp = invoke_agent(agent, prompt, role="architect", label=site["archetype"],
+                        expect=_SitePlanModel, timeout=cfg["ai"].get("timeout"))
     log.debug("architect raw response: %r", resp.content)
-    _log_usage(resp)
     return _to_site_plan(resp.content)
 
 
@@ -186,14 +176,12 @@ def run_page(doc: Doc, plan: SitePlan, cfg: dict) -> PageEnhancement:
     agent = _make_agent(cfg, "page", instr, _EnhancementModel)
     prompt = (f"Page '{doc.title}' (slug {doc.slug}). Section headings: "
               f"{doc.outline}. Body HTML:\n{doc.fragment_html[:6000]}")
-    log.info("page: enhancing %s (%d body chars)",
+    log.info("page-enhance %s: body %d chars (truncated to 6000 for the prompt)",
              doc.slug, len(doc.fragment_html))
     log.debug("page %s prompt (%d chars):\n%s", doc.slug, len(prompt), prompt)
-    t0 = time.perf_counter()
-    resp = agent.run(prompt)
-    log.debug("page %s: responded in %.2fs", doc.slug, time.perf_counter() - t0)
+    resp = invoke_agent(agent, prompt, role="page-enhance", label=doc.slug,
+                        expect=_EnhancementModel, timeout=cfg["ai"].get("timeout"))
     log.debug("page %s raw response: %r", doc.slug, resp.content)
-    _log_usage(resp)
     enh = _to_enhancement(resp.content)
     log.info("page %s: tldr=%s, %d takeaway(s), %d related",
              doc.slug, bool(enh.tldr), len(enh.takeaways), len(enh.related))

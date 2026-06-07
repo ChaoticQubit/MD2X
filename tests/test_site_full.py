@@ -73,14 +73,12 @@ def test_write_full_site_standalone(tmp_path):
 
 # --- author agent -----------------------------------------------------------
 
-def test_run_full_page_converts(monkeypatch):
+def test_run_full_section_returns_fragment(monkeypatch):
     pytest.importorskip("agno")
     from md2x.site import full_agent
 
     class _Resp:
-        content = full_agent._FullPageModel(
-            html="<!doctype html><html><body>X</body></html>",
-            title="Doc", export_format="markdown", export_label="Copy")
+        content = full_agent._FullPageModel(html="<div>X</div>", title="Doc")
 
     class _Agent:
         def __init__(self, *a, **k):
@@ -91,10 +89,25 @@ def test_run_full_page_converts(monkeypatch):
 
     monkeypatch.setattr(full_agent, "Agent", _Agent)
     monkeypatch.setattr(full_agent, "build_model", lambda ai, role: None)
-    doc = Doc(path=Path("a.md"), title="A", outline=[], fragment_html="<p>x</p>")
     cfg = {"site": {"archetype": "explainer", "render_mode": "full",
                     "fidelity": "synthesize"},
            "ai": {"model": "x:y", "page_model": None, "retries": 1}}
+    frag = full_agent.run_full_section("Sec", "<p>x</p>", cfg)
+    assert frag == "<div>X</div>"
+
+
+def test_run_full_page_assembles_sections(monkeypatch):
+    """A multi-section doc → anchored <section>s, every section present."""
+    pytest.importorskip("agno")
+    from md2x.site import full_agent
+
+    monkeypatch.setattr(full_agent, "run_full_section",
+                        lambda title, html, cfg, artifacts=None: f"<p>auth:{title}</p>")
+    doc = Doc(path=Path("a.md"), title="A", outline=[],
+              fragment_html="<h1>A</h1><h2>One</h2><p>1</p><h2>Two</h2><p>2</p>")
+    cfg = {"site": {"archetype": "explainer", "render_mode": "full",
+                    "fidelity": "synthesize"},
+           "ai": {"model": "x:y", "page_model": None, "retries": 1, "concurrency": 2}}
     fp = full_agent.run_full_page(doc, cfg)
-    assert "X" in fp.html
-    assert fp.export is not None and fp.export.format == "markdown"
+    assert 'id="one"' in fp.html and 'id="two"' in fp.html
+    assert "auth:One" in fp.html and "auth:Two" in fp.html
