@@ -1,0 +1,47 @@
+# Publish md2x to PyPI on a GitHub Release, using PyPI Trusted Publishing
+# (OIDC) — no API token stored anywhere.
+#
+# One-time setup on PyPI: project md2x -> Settings -> Publishing -> add a
+# "trusted publisher" for repo ChaoticQubit/MD2X, workflow `publish.yml`,
+# environment `pypi`. Then: bump the version in pyproject.toml, push, and create
+# a GitHub Release whose tag matches (e.g. v0.2.0). This workflow builds and
+# uploads the sdist + wheel.
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write          # mandatory for trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
