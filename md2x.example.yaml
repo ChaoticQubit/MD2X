@@ -1,63 +1,176 @@
-# md2x.example.yaml — a commented example config for `md2x site`.
+# md2x.example.yaml — configuration template.
 #
-# Copy the keys you want into your own `md2x.yaml` (next to your Markdown, or at
-# the project root). Everything here shows the built-in default, so an empty
-# md2x.yaml behaves exactly like this file. Only the `site:` and `ai:` blocks are
-# shown; see the README for the document-conversion keys (output/page/fonts/...).
+#   make install   copies this to `md2x.yaml` (your local config, git-ignored).
+#   make start     reads md2x.yaml and builds the AI site (site.input -> site.output).
+#
+# CLI flags override values here. Every section is optional — missing values
+# fall back to the built-in defaults shown in the comments.
 
+# ──────────────────────────────────────────────────────────────────────────
+# OUTPUT  (document conversion: pdf / docx / html / epub / latex)
+# ──────────────────────────────────────────────────────────────────────────
+output:
+  toc: true                  # generate table of contents
+  toc_depth: 3               # heading depth included in ToC (1-6)
+  format: null               # null = infer from -o extension (defaults to pdf)
+  number_sections: true      # "1.2.3" prefixed headings
+  citation_processing: true  # pandoc-citeproc for [^citekey] refs
+
+# ──────────────────────────────────────────────────────────────────────────
+# PAGE  (PDF / LaTeX only)
+# ──────────────────────────────────────────────────────────────────────────
+page:
+  margin: 0.85in             # any LaTeX length: 0.7in, 2cm, 18mm, ...
+  fontsize: 10.5pt           # 10pt / 11pt / 12pt safest
+  paper: letter              # letter | a4 | a5 | legal | b5 | executive
+  orientation: portrait      # portrait | landscape
+  line_spacing: 1.15         # 1.0 = single, 1.5 = one-and-a-half
+
+# ──────────────────────────────────────────────────────────────────────────
+# FONTS  (null = xelatex built-in Computer Modern; or any name in `fc-list`)
+# ──────────────────────────────────────────────────────────────────────────
+fonts:
+  main: null
+  sans: null
+  mono: null
+  cjk: null                  # e.g. "Noto Sans CJK SC" for Chinese/Japanese
+
+# ──────────────────────────────────────────────────────────────────────────
+# COLORS  (xcolor named colors or hex like "1F4E79")
+# ──────────────────────────────────────────────────────────────────────────
+colors:
+  link: NavyBlue
+  url: NavyBlue
+  toc: NavyBlue
+  heading: null              # null = LaTeX default black
+
+# ──────────────────────────────────────────────────────────────────────────
+# CODE BLOCKS
+# ──────────────────────────────────────────────────────────────────────────
+code:
+  highlight_style: tango     # tango | pygments | kate | breezedark | zenburn | ...
+  line_numbers: false
+
+# ──────────────────────────────────────────────────────────────────────────
+# IMAGES / DIAGRAMS
+# ──────────────────────────────────────────────────────────────────────────
+images:
+  width: 6.2in
+  caption_prefix: "Figure"   # "" to suppress numbering
+  show_captions: true
+  dpi: 120
+  mmdc_width: 1600
+  mmdc_height: 1100
+
+# ──────────────────────────────────────────────────────────────────────────
+# MERMAID
+# ──────────────────────────────────────────────────────────────────────────
+mermaid:
+  theme: default             # default | forest | dark | neutral
+  background: white          # transparent | white | <hex>
+  prefer: auto               # mmdc | dot | auto
+  on_failure: keep_source    # keep_source | omit | error
+
+# ──────────────────────────────────────────────────────────────────────────
+# BINARY PATHS  (null = auto-detect: .bin/ -> .tools/ -> node_modules/.bin -> PATH)
+# ──────────────────────────────────────────────────────────────────────────
+binaries:
+  pandoc: null
+  xelatex: null
+  mmdc: null
+  dot: null
+
+# ──────────────────────────────────────────────────────────────────────────
+# ADVANCED
+# ──────────────────────────────────────────────────────────────────────────
+advanced:
+  header_includes:
+    - \usepackage{float}
+    - \floatplacement{figure}{H}
+    - \usepackage[export]{adjustbox}
+    - \usepackage{microtype}
+    - \usepackage{booktabs}
+  pandoc_extra_args: []
+  keep_intermediate: false
+  emit_manifest: false
+  no_clobber: false
+
+# ----------------------------------------------------------------------------
+# AI living-site (`md2x site` / `make start`) — requires: pip install md2x[ai]
+# ----------------------------------------------------------------------------
 site:
+  # Input(s) for `make start`: a file, a folder, or several space-separated
+  # (folders recurse when `recursive: true`). This is the one place to set what
+  # gets built — `make start` reads it, no CLI args needed.
+  input: docs/
+  # Output directory for the generated site.
+  output: site
+
   # The site title (index heading). null -> "Documentation".
   title: null
 
-  # ── The three orthogonal axes ─────────────────────────────────────────────
-  # archetype × render_mode × fidelity fully describe a living site.
+  # ── The three orthogonal axes: archetype × render_mode × fidelity ─────────
 
-  # archetype — WHAT kind of site. One of:
+  # archetype — WHAT kind of site:
   #   reading presentation flyer product   (narrative)
   #   docs review plan explainer           (technical)
   #   report editor design                 (data / ops)
   #   custom                               (style_prompt drives everything)
-  archetype: reading
+  archetype: presentation
 
-  # render_mode — HOW the HTML is produced (safety ladder: blocks ⊂ hybrid ⊂ full):
-  #   blocks  typed block tree only; md2x owns every tag (safest, most testable).
-  #   hybrid  blocks PLUS sandboxed, CSP-locked `artifact` iframes for real
-  #           interactivity (drag/drop, sliders, editors). DEFAULT.
-  #   full    one standalone, self-contained interactive HTML document per page,
-  #           CSP-locked (no external network). Max fidelity.
+  # render_mode — HOW the HTML is produced (safety ladder):
+  #   blocks    typed block tree; md2x owns every tag (safest, most testable).
+  #   hybrid    blocks + sandboxed, CSP-locked `artifact` iframes. DEFAULT.
+  #   full      one standalone, CSP-locked interactive HTML doc per page.
+  #   authored  the designer/builder author each section's own HTML/CSS.
   render_mode: hybrid
 
   # fidelity — how much the AI may rewrite prose:
-  #   preserve       body is verbatim; AI only plans nav/design.
+  #   preserve       body verbatim; AI only plans nav/design.
   #   light-enhance  verbatim body + additive aids (TL;DR, takeaways, related).
-  #   synthesize     AI restructures content into the richer shapes. DEFAULT.
+  #   synthesize     AI restructures content into richer shapes. DEFAULT.
   fidelity: synthesize
 
-  # auto -> the archetype's natural layout (multi-page | single-page).
+  # auto -> the archetype's natural layout. Or force: multi-page | single-page.
   layout: auto
 
   # Free-text nudge for the look/voice (especially with archetype: custom).
   style_prompt: ""
 
   theme:
-    accent: "#2563eb"   # any safe CSS colour; seeds the --ds-accent token
+    accent: "#2563eb"        # any safe CSS colour; seeds the --ds-accent token
     dark_mode: true
 
   features: [search, animations, smooth-scroll]
-  recursive: true       # recurse into subdirectories when given a folder
+  recursive: true            # recurse into subdirectories when given a folder
 
 ai:
-  # Provider-agnostic model string "<provider>:<model>" (anthropic / openai / groq / ...).
-  model: "anthropic:claude-sonnet-4-6"
-  architect_model: null   # override the architect's model (null = use `model`)
-  page_model: null        # override the per-page model (null = use `model`)
-  temperature: 0.4
+  # "<provider>:<model>" — anthropic / openai / groq / openai-like (local), ...
+  model:
+    provider: "anthropic"
+    id: "claude-opus-4-8"
+    # For a local OpenAI-compatible server, use provider "openai-like" + base_url:
+    #   provider: "openai-like"
+    #   base_url: "http://localhost:8000/v1"
+    api_key_env: "ANTHROPIC_API_KEY"   # name of the env var holding the key
+  architect_model: null      # override the architect's model (null = use `model`)
+  page_model: null           # override the per-page model (null = use `model`)
+  temperature: 0.7
   max_tokens: null
-  concurrency: 4          # parallel per-page agent calls
-  retries: 2              # agno retries on invalid structured output
+  concurrency: 6             # parallel per-page agent calls (keep modest for local servers)
+  retries: 3                # agno retries on invalid structured output
+  timeout: 180              # per-LLM-call wall-clock seconds (prevents hangs)
 
-  # Input guardrails (agno pre_hooks), provider-agnostic.
+  # Input guardrails (agno pre_hooks). Off by default for trusted, self-authored
+  # docs; turn on for untrusted input.
   guardrails:
-    prompt_injection: true   # default-on: a hostile doc can't hijack the agent
-    pii: false               # opt-in PII detection
+    prompt_injection: false
+    pii: false
     moderation: false        # opt-in OpenAI moderation (needs OPENAI_API_KEY)
+
+deploy:
+  provider: vercel
+  token_env: VERCEL_TOKEN    # token read from this env var; never stored here
+  project: null
+  team_id: null
+  production: true
