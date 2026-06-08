@@ -17,7 +17,7 @@ from ..log import get_logger
 from .archetypes import get_archetype, get_suggested_artifacts, resolve_layout
 from .guardrails import build_pre_hooks
 from .invoke import invoke_agent
-from .models import build_model
+from .models import build_model, is_openai_like
 from .schemas import Doc, NavItem, SitePlan, PageEnhancement, DesignSystem
 from .skill import load_skill
 
@@ -108,6 +108,8 @@ def _make_agent(cfg: dict, role: str, instructions: str, schema):
         instructions=instructions,
         output_schema=schema,
         retries=retries,
+        # local endpoints ignore native response_format -> inject schema into prompt
+        use_json_mode=is_openai_like(ai, role),
         pre_hooks=build_pre_hooks(cfg),
     )
 

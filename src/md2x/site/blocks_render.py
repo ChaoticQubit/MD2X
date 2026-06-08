@@ -17,7 +17,7 @@ from pathlib import Path
 
 from ..log import get_logger
 from .blocks import (
-    Artifact, Block, Callout, CardGrid, Chart, Code, Collapsible, DiagramSvg,
+    Artifact, AuthoredSection, Block, Callout, CardGrid, Chart, Code, Collapsible, DiagramSvg,
     Figure, Glossary, Hero, KpiStrip, PageDoc, Prose, Quote, RawHtml, Section,
     Steps, Summary, Table, Tabs, Timeline, build_page_doc,
 )
@@ -25,6 +25,7 @@ from .design_css import design_css_vars, render_design_system_page
 from .render import (
     _accent, _copy_diagrams, _design_for, _enhancement_html, _href, _nav_html,
 )
+from .css_contract import enforce_section_css
 from .sanitize import sanitize_inline, sanitize_svg
 from .schemas import PageEnhancement, SitePlan
 from .theme import SITE_CSS, SITE_JS
@@ -274,7 +275,46 @@ def _artifact(b: Artifact, ds_css: str = "") -> str:
     )
 
 
+_INLINE_STYLE = re.compile(r"(?is)<style\b.*?</style\s*>")
+_ANY_HEADING = re.compile(r"(?is)<h[1-3]\b[^>]*>(.*?)</h[1-3]\s*>")
+_TAGS = re.compile(r"(?is)<[^>]+>")
+_WS = re.compile(r"\s+")
+# upgrade bare authored tables to the engine's polished, sortable treatment.
+_AUTH_TABLE = re.compile(r"(?is)<table(?![^>]*\bb-table\b)([^>]*)>")
+
+
+def _strip_title_headings(html: str, title: str) -> str:
+    """Drop any heading the builder emitted that just repeats the section title —
+    anywhere in the markup, even wrapped in a div — since the page already renders
+    the title. Genuine subheadings (different text) are kept."""
+    norm = _WS.sub(" ", title or "").strip().lower()
+    if not norm:
+        return html
+
+    def _drop(m):
+        inner = _WS.sub(" ", _TAGS.sub("", m.group(1))).strip().lower()
+        return "" if inner == norm else m.group(0)
+
+    return _ANY_HEADING.sub(_drop, html)
+
+
+def _authored_section(b: AuthoredSection) -> str:
+    """Render an AI-authored section: scope+lint its CSS to `#<anchor>`, strip any
+    inline <style>/<script> and any heading that just repeats the section title (the
+    page renders it), sanitize the rest (no JS in the main document — that lives in
+    Artifact iframes), and upgrade bare tables to the sortable engine look."""
+    scoped = enforce_section_css(b.css, f"#{_e(b.anchor)}")
+    html = _strip_title_headings(_INLINE_STYLE.sub("", b.html or ""), b.title)
+    safe = _AUTH_TABLE.sub(r'<table class="b-table" data-sortable\1>',
+                           sanitize_inline(html))
+    style = f"<style>{scoped}</style>" if scoped else ""
+    return (f'<section id="{_e(b.anchor)}" class="b-section b-authored" data-reveal>'
+            f'{style}<h2 class="b-section-h">{_e(b.title)}</h2>{safe}</section>')
+
+
 def render_block(block: Block, ds_css: str = "") -> str:
+    if isinstance(block, AuthoredSection):
+        return _authored_section(block)
     if isinstance(block, Artifact):
         return _artifact(block, ds_css)
     if isinstance(block, Section):
@@ -316,6 +356,15 @@ def _page_doc_for(doc, cfg: dict, plan: SitePlan, use_ai: bool) -> PageDoc:
     """AI block tree at synthesize (with the architect's per-page artifacts),
     else the deterministic builder. The agent runs only when AI is enabled —
     `--no-ai` is always deterministic, regardless of fidelity."""
+    if use_ai and cfg["site"].get("render_mode") == "authored":
+        try:
+            from .authored_agent import run_authored_page   # lazy: needs agno
+            return run_authored_page(doc, cfg, plan)
+        except Exception as e:
+            log.warning("authored agent failed for %s (%s); deterministic page",
+                        doc.slug, e)
+            log.debug("authored %s failure", doc.slug, exc_info=True)
+            return build_page_doc(doc)
     if use_ai and cfg["site"].get("fidelity") == "synthesize":
         try:
             from .blocks_agent import run_page_blocks   # lazy: needs agno
@@ -333,7 +382,7 @@ def _section_nav_html(page: PageDoc, plan: SitePlan, active_slug: str) -> str:
     H2 section (the in-page table of contents), and — when the site has more than
     one doc — links to the others. Replaces one-file-one-link nav so a single
     large document is actually navigable."""
-    secs = [b for b in page.blocks if isinstance(b, Section)]
+    secs = [b for b in page.blocks if isinstance(b, (Section, AuthoredSection))]
     parts = ['<nav class="side">']
     parts.append(f'<a class="nav-doc active" href="#{_e(page.slug)}">'
                  f"{_e(page.title)}</a>")
