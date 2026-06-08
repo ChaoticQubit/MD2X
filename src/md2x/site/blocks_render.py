@@ -25,7 +25,7 @@ from .design_css import design_css_vars, render_design_system_page
 from .render import (
     _accent, _copy_diagrams, _design_for, _enhancement_html, _href, _nav_html,
 )
-from .css_contract import enforce_section_css
+from .css_contract import enforce_section_css, enforce_inline_styles
 from .sanitize import sanitize_inline, sanitize_svg
 from .schemas import PageEnhancement, SitePlan, slugify
 from .theme import SITE_CSS, SITE_JS
@@ -305,8 +305,10 @@ def _authored_section(b: AuthoredSection) -> str:
     Artifact iframes), and upgrade bare tables to the sortable engine look."""
     scoped = enforce_section_css(b.css, f"#{_e(b.anchor)}")
     html = _strip_title_headings(_INLINE_STYLE.sub("", b.html or ""), b.title)
+    # inline `style=` attrs bypass the <style> contract, so hold them to it too
+    # (drops raw/invisible colours; keeps theme-safe tokens and layout).
     safe = _AUTH_TABLE.sub(r'<table class="b-table" data-sortable\1>',
-                           sanitize_inline(html))
+                           enforce_inline_styles(sanitize_inline(html)))
     style = f"<style>{scoped}</style>" if scoped else ""
     return (f'<section id="{_e(b.anchor)}" class="b-section b-authored" data-reveal>'
             f'{style}<h2 class="b-section-h">{_e(b.title)}</h2>{safe}</section>')
