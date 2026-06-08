@@ -27,7 +27,7 @@ from .render import (
 )
 from .css_contract import enforce_section_css
 from .sanitize import sanitize_inline, sanitize_svg
-from .schemas import PageEnhancement, SitePlan
+from .schemas import PageEnhancement, SitePlan, slugify
 from .theme import SITE_CSS, SITE_JS
 
 log = get_logger(__name__)
@@ -400,17 +400,105 @@ def _section_nav_html(page: PageDoc, plan: SitePlan, active_slug: str) -> str:
     return "".join(parts)
 
 
-def _render_doc_page(doc, plan: SitePlan, enh: PageEnhancement, cfg: dict,
-                     use_ai: bool) -> str:
+def _render_doc_page(doc, page: PageDoc, plan: SitePlan, enh: PageEnhancement,
+                     cfg: dict) -> str:
+    """Single-page: the whole document on one page with an in-page section TOC."""
     accent = _accent(cfg, plan)
     ds_css = design_css_vars(_design_for(plan, accent))
-    page = _page_doc_for(doc, cfg, plan, use_ai)
     nav = _section_nav_html(page, plan, doc.slug)
     enh_html = _enhancement_html(enh, plan, single_page=False)
     main = (f'<main id="{_e(doc.slug)}">{enh_html}'
             f"{render_blocks(page.blocks, ds_css=ds_css)}</main>")
     body = f'<div class="layout">{nav}{main}</div>'
     return _blocks_page_html(doc.title, ds_css, body)
+
+
+# --- multi-page: explode a built page into one page per section -------------
+
+# Top-level blocks that represent a standalone section (each becomes its own
+# page in multi-page layout). Everything else (hero, intro prose, a trailing
+# figure) rides along with the overview or the section it follows.
+_SECTIONISH = (Section, AuthoredSection, Artifact)
+
+
+def _split_section_pages(doc, page: PageDoc):
+    """Split a built PageDoc into (overview preamble, section leaves).
+
+    The hero and any intro before the first section form the overview preamble;
+    each Section/AuthoredSection/Artifact becomes a leaf. A non-section block that
+    trails a section (e.g. a figure the author appended after it) is grouped with
+    that section, so a section's diagrams travel with it to its page. Returns
+    ``(preamble_blocks, [[page_slug, title, [blocks]], ...])``."""
+    preamble: list = []
+    leaves: list = []
+    for b in page.blocks:
+        if isinstance(b, _SECTIONISH):
+            title = getattr(b, "title", "") or ""
+            anchor = (getattr(b, "anchor", "") or slugify(title)
+                      or f"section-{len(leaves) + 1}")
+            leaves.append([f"{doc.slug}__{anchor}", title, [b]])
+        elif leaves:
+            leaves[-1][2].append(b)
+        else:
+            preamble.append(b)
+    return preamble, leaves
+
+
+def _multipage_nav(doc_slug: str, doc_title: str, leaves, plan: SitePlan,
+                   active_slug: str) -> str:
+    """Sidebar for a multi-page document: the overview link, a link per section
+    page (the active one highlighted), then links to the other documents."""
+    parts = ['<nav class="side">']
+    dcls = " active" if active_slug == doc_slug else ""
+    parts.append(f'<a class="nav-doc{dcls}" href="{_href(doc_slug, False)}">'
+                 f"{_e(doc_title)}</a>")
+    if leaves:
+        parts.append('<div class="nav-secs">')
+        for slug, title, _ in leaves:
+            acls = ' class="active"' if slug == active_slug else ""
+            parts.append(f'<a href="{_href(slug, False)}"{acls}>{_e(title)}</a>')
+        parts.append("</div>")
+    others = [n for n in plan.nav if n.slug != doc_slug]
+    if others:
+        parts.append('<div class="group">More</div>')
+        for n in others:
+            parts.append(f'<a href="{_href(n.slug, False)}">{_e(n.title)}</a>')
+    parts.append("</nav>")
+    return "".join(parts)
+
+
+def _render_overview_page(doc, preamble, leaves, enh: PageEnhancement,
+                          plan: SitePlan, cfg: dict) -> str:
+    """The multi-page landing page for one document: hero + intro + page-level
+    aids, then a card grid linking to each section's page."""
+    accent = _accent(cfg, plan)
+    ds_css = design_css_vars(_design_for(plan, accent))
+    nav = _multipage_nav(doc.slug, doc.title, leaves, plan, doc.slug)
+    pre = (render_blocks(preamble, ds_css=ds_css) if preamble
+           else f'<header class="b-hero" data-reveal><h1>{_e(doc.title)}</h1>'
+                f"</header>")
+    enh_html = _enhancement_html(enh, plan, single_page=False)
+    cards = "".join(
+        f'<a class="b-card" href="{_href(slug, False)}"><h3>{_e(title)}</h3></a>'
+        for slug, title, _ in leaves
+    )
+    main = (f'<main id="{_e(doc.slug)}">{pre}{enh_html}'
+            f'<div class="b-cards" data-reveal>{cards}</div></main>')
+    body = f'<div class="layout">{nav}{main}</div>'
+    return _blocks_page_html(doc.title, ds_css, body)
+
+
+def _render_section_page(doc, slug: str, title: str, blocks, leaves,
+                         plan: SitePlan, cfg: dict) -> str:
+    """One section as its own page (its heading comes from the section block
+    itself), with the shared multi-page sidebar."""
+    accent = _accent(cfg, plan)
+    ds_css = design_css_vars(_design_for(plan, accent))
+    nav = _multipage_nav(doc.slug, doc.title, leaves, plan, slug)
+    main = f'<main id="{_e(slug)}">{render_blocks(blocks, ds_css=ds_css)}</main>'
+    body = f'<div class="layout">{nav}{main}</div>'
+    page_title = f"{title} · {doc.title}" if title else doc.title
+    return _blocks_page_html(page_title, ds_css, body)
 
 
 def _render_index(plan: SitePlan, cfg: dict) -> str:
@@ -430,9 +518,15 @@ def _render_index(plan: SitePlan, cfg: dict) -> str:
 
 
 def write_blocks_site(out_dir: Path, docs, plan: SitePlan,
-                      enh: dict, cfg: dict, *, use_ai: bool) -> None:
-    """Write a typed-block site: shared engine assets + one page per doc + index
-    + design-system page."""
+                      enh: dict, cfg: dict, *, use_ai: bool,
+                      layout: str = "single-page") -> None:
+    """Write a typed-block site: shared engine assets + index + design-system page.
+
+    ``layout='single-page'`` (default) writes one page per document (the whole
+    document on one scrolling page with an in-page section TOC). ``'multi-page'``
+    explodes each multi-section document into an overview page plus one page per
+    section, so a single rich document becomes a genuinely multi-page site; a
+    document with fewer than two sections stays a single page."""
     out_dir.mkdir(parents=True, exist_ok=True)
     accent = _accent(cfg, plan)
 
@@ -444,12 +538,29 @@ def write_blocks_site(out_dir: Path, docs, plan: SitePlan,
     log.info("blocks engine: assets/site.css (%d B) + assets/site.js (%d B)",
              len(SITE_CSS), len(SITE_JS))
 
-    log.info("blocks site: %d doc(s), ai=%s, fidelity=%s, accent=%s",
+    multipage = layout == "multi-page"
+    log.info("blocks site: %d doc(s), ai=%s, fidelity=%s, layout=%s, accent=%s",
              len(docs), "on" if use_ai else "off",
-             cfg["site"].get("fidelity"), accent)
+             cfg["site"].get("fidelity"), layout, accent)
     for doc in docs:
-        page_html = _render_doc_page(doc, plan, enh.get(doc.slug, PageEnhancement()),
-                                     cfg, use_ai)
+        page = _page_doc_for(doc, cfg, plan, use_ai)
+        doc_enh = enh.get(doc.slug, PageEnhancement())
+        if multipage:
+            preamble, leaves = _split_section_pages(doc, page)
+            if len(leaves) >= 2:
+                (out_dir / f"{doc.slug}.html").write_text(
+                    _render_overview_page(doc, preamble, leaves, doc_enh, plan, cfg),
+                    encoding="utf-8")
+                for slug, title, blocks in leaves:
+                    (out_dir / f"{slug}.html").write_text(
+                        _render_section_page(doc, slug, title, blocks, leaves,
+                                             plan, cfg),
+                        encoding="utf-8")
+                log.info("blocks multi-page: %s -> overview + %d section page(s)",
+                         doc.slug, len(leaves))
+                continue
+            log.debug("blocks multi-page: %s has <2 sections; one page", doc.slug)
+        page_html = _render_doc_page(doc, page, plan, doc_enh, cfg)
         (out_dir / f"{doc.slug}.html").write_text(page_html, encoding="utf-8")
         log.debug("wrote blocks page %s.html", doc.slug)
     (out_dir / "index.html").write_text(_render_index(plan, cfg), encoding="utf-8")

@@ -100,6 +100,29 @@ def _to_tree(slug: str, m: _TreeM, fallback_titles: list[str]) -> DesignTree:
     if not out:                                   # model returned nothing usable
         out = [SectionSpec(anchor=slugify(t), title=t, source_anchors=[slugify(t)])
                for t in fallback_titles]
+        return DesignTree(slug=slug, sections=out)
+
+    # Coverage guardrail: the designer MAY merge, split, or reorder sections, but
+    # it must not silently DROP one — a heading the reader expects (e.g.
+    # "Certifications") vanishing from the site is a content bug, not a design
+    # choice. A source heading counts as covered when some spec lists it in
+    # source_anchors, or when a spec's own anchor is that heading's slug. Append a
+    # 1:1 section, in source order, for any heading nothing covers.
+    covered: set[str] = set()
+    for spec in out:
+        covered.add(spec.anchor)
+        covered.update(spec.source_anchors)
+    appended = 0
+    for title in fallback_titles:
+        sl = slugify(title)
+        if sl in covered:
+            continue
+        out.append(SectionSpec(anchor=sl, title=title, source_anchors=[sl]))
+        covered.add(sl)
+        appended += 1
+    if appended:
+        log.info("designer: %s -> appended %d uncovered source section(s) "
+                 "(coverage guardrail)", slug, appended)
     return DesignTree(slug=slug, sections=out)
 
 
