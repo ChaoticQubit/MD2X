@@ -17,7 +17,10 @@ from __future__ import annotations
 # --- the design system + animation primitives -------------------------------
 # Semantic vars resolve from the page's inline --ds-* tokens (with sane fallbacks),
 # so one shared stylesheet themes every site. Dark mode overrides the *semantic*
-# vars directly (the --ds-* tokens only carry the light palette).
+# vars AND the neutral --ds-* tokens (bg/fg/muted/card/border): authored-section
+# CSS is bound by the css_contract to the --ds-* tokens, so flipping them is what
+# makes authored sections follow dark mode instead of staying light. --ds-accent
+# (brand) and the type/space/radius scales (layout) deliberately do NOT flip.
 SITE_CSS = """\
 :root{
   --accent: var(--ds-accent,#2563eb);
@@ -44,6 +47,8 @@ SITE_CSS = """\
   :root:not([data-theme="light"]){
     --bg:#0b0f17; --fg:#e8edf4; --muted:#93a0b4; --card:#141a24; --border:#222b38;
     --surface:#10151e;
+    /* flip the neutral contract tokens too, so authored-section CSS themes */
+    --ds-bg:#0b0f17; --ds-fg:#e8edf4; --ds-muted:#93a0b4; --ds-card:#141a24; --ds-border:#222b38;
     --shadow-md: 0 8px 18px -8px rgba(0,0,0,.5), 0 12px 36px -14px rgba(0,0,0,.5);
     --shadow-lg: 0 22px 48px -14px rgba(0,0,0,.6);
   }
@@ -51,6 +56,7 @@ SITE_CSS = """\
 [data-theme="dark"]{
   --bg:#0b0f17; --fg:#e8edf4; --muted:#93a0b4; --card:#141a24; --border:#222b38;
   --surface:#10151e;
+  --ds-bg:#0b0f17; --ds-fg:#e8edf4; --ds-muted:#93a0b4; --ds-card:#141a24; --ds-border:#222b38;
   --shadow-md: 0 8px 18px -8px rgba(0,0,0,.5), 0 12px 36px -14px rgba(0,0,0,.5);
   --shadow-lg: 0 22px 48px -14px rgba(0,0,0,.6);
 }
