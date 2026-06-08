@@ -215,5 +215,14 @@ echo
 color "==> install complete. local binaries:"
 ls -1 "$BIN" | sed 's/^/    /'
 echo
-echo "Run a smoke test:    .venv/bin/md2x examples/sample.md"
+
+# Seed a local config from the template (your edits stay local; md2x.yaml is
+# git-ignored). Never clobber an existing one.
+if [ ! -f md2x.yaml ] && [ -f md2x.example.yaml ]; then
+    cp md2x.example.yaml md2x.yaml
+    echo "config:  created md2x.yaml from md2x.example.yaml"
+fi
+
+echo
+echo "Next:                edit md2x.yaml, then 'make start' (build) + 'make serve' (preview)"
 echo "Activate for shell:  source .venv/bin/activate && export PATH=\"\$PWD/.bin:\$PATH\""

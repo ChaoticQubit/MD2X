@@ -36,3 +36,8 @@ dist/
 *.swo
 
 .claude/
+.pytest_cache/
+.ruff_cache/
+
+# Local, per-machine config — seeded from md2x.example.yaml by `make install`.
+md2x.yaml

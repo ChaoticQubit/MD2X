@@ -64,6 +64,13 @@ md2x --check                      # show which binaries were found
 
 `md2x --help` lists every flag.
 
+**AI site in two commands** — set `site.input` / `site.output` in `md2x.yaml`, then:
+
+```bash
+make start    # build the site described by md2x.yaml
+make serve    # preview it at http://localhost:8000
+```
+
 ## Supported formats
 
 | Format | Flag / extension | Requires |
@@ -241,6 +248,25 @@ binaries:
 ```
 
 Or delete `.bin/` / `.tools/` and the script falls back to `$PATH`.
+
+## Releasing to PyPI
+
+The package version lives in `pyproject.toml`. Two ways to publish:
+
+**Manual (twine):**
+
+```bash
+# bump `version` in pyproject.toml first
+pip install -e ".[publish]"   # installs build + twine
+make build                    # sdist + wheel -> dist/
+make publish                  # upload to PyPI (needs a PyPI API token or ~/.pypirc)
+```
+
+**GitHub Action (no token).** The repo ships `.github/workflows/publish.yml`, which builds and uploads on a published GitHub Release via PyPI [Trusted Publishing](https://docs.pypi.org/trusted-publishers/):
+
+1. One-time on PyPI → project `md2x` → *Publishing* → add a trusted publisher for repo `ChaoticQubit/MD2X`, workflow `publish.yml`, environment `pypi`.
+2. Bump `version` in `pyproject.toml`, commit, push.
+3. Create a GitHub Release with tag `v<version>` (e.g. `v0.2.0`). The Action builds and publishes.
 
 ## Contributing
 
